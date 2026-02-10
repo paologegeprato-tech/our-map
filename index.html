@@ -9,97 +9,93 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
-html,body{
-  margin:0;height:100%;
-  background:#0a0e13;color:#f0ebe5;
-  font-family:Arial,sans-serif;
+html, body { margin:0; height:100%; background:#0a0e13; color:#f0ebe5; font-family:Arial,sans-serif; }
+
+#intro {
+  position:fixed; inset:0; background:#0a0e13;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  z-index:3000; text-align:center;
+}
+#intro h1 { color:#d4af37; font-size:2.4rem; }
+#intro p { color:#ccc; max-width:320px; }
+#intro button {
+  margin-top:30px; padding:14px 26px;
+  background:#d4af37; border:none;
+  font-weight:bold; font-size:1.1rem;
+  border-radius:8px; cursor:pointer;
 }
 
-#intro{
-  position:fixed;inset:0;
-  background:#0a0e13;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  z-index:3000;text-align:center;
+.header {
+  padding:16px; text-align:center;
+  background:#1a1a1a; border-bottom:1px solid #333;
 }
-#intro h1{color:#d4af37;font-size:2.4rem;}
-#intro p{color:#ccc;max-width:320px;}
-#intro button{
-  margin-top:30px;padding:14px 26px;
-  background:#d4af37;border:none;
-  font-weight:bold;font-size:1.1rem;
-  border-radius:8px;cursor:pointer;
-}
+.header h1 { margin:0; color:#d4af37; }
 
-.header{
-  padding:16px;text-align:center;
-  background:#1a1a1a;border-bottom:1px solid #333;
-}
-.header h1{margin:0;color:#d4af37;}
-
-#map{height:calc(100% - 70px);}
+#map { height:calc(100% - 70px); }
 
 /* MODAL */
-.modal{
-  position:fixed;inset:0;
+.modal {
+  position:fixed; inset:0;
   background:rgba(0,0,0,.95);
-  display:none;align-items:center;justify-content:center;
+  display:none; align-items:center; justify-content:center;
   z-index:2000;
 }
-.modal.active{display:flex;}
+.modal.active { display:flex; }
 
-.modal-content{
-  background:#1a1a1a;
-  padding:28px;
-  width:90%;max-width:420px;
-  border-radius:12px;
-  border:1px solid #d4af37;
+.modal-content {
+  background:#1a1a1a; padding:24px;
+  width:90%; max-width:420px;
+  border-radius:12px; border:1px solid #d4af37;
 }
 
-input,textarea{
-  width:100%;margin-bottom:12px;
-  padding:10px;background:#222;
-  border:1px solid #555;color:#fff;
+input, textarea {
+  width:100%; margin-bottom:12px;
+  padding:10px; background:#222;
+  border:1px solid #555; color:#fff;
   border-radius:6px;
 }
 
-.icon-picker{text-align:center;margin-bottom:16px;}
-.icon-picker span{
-  font-size:1.6rem;margin:0 12px;cursor:pointer;
+.icon-picker { text-align:center; margin-bottom:16px; }
+.icon-picker span {
+  font-size:2rem; margin:0 12px;
+  cursor:pointer;
 }
-.icon-picker span.selected{transform:scale(1.25);}
+.icon-picker span.selected { transform:scale(1.3); }
 
-button{
-  width:100%;padding:14px;
-  border:none;border-radius:6px;
-  font-weight:bold;cursor:pointer;
+button {
+  width:100%; padding:14px;
+  border:none; border-radius:6px;
+  font-weight:bold; cursor:pointer;
 }
-button.save{background:#d4af37;}
-button.cancel{background:#555;margin-top:10px;}
-button.delete{background:#8b2d2d;margin-top:10px;}
-button:disabled{opacity:.6;cursor:not-allowed;}
+
+button.save { background:#d4af37; }
+button.cancel { background:#555; margin-top:10px; }
+button.delete { background:#8b0000; margin-top:10px; }
+
+button:disabled { opacity:.6; cursor:not-allowed; }
+
+/* CLEAN ICON FIX */
+.leaflet-div-icon {
+  background: none !important;
+  border: none !important;
+}
 
 /* POPUP */
-.leaflet-popup-content{margin:0;}
-.popup{max-width:220px;}
-.popup img{
-  width:100%;max-height:150px;
-  object-fit:cover;border-radius:8px;
+.popup-content img {
+  width:100%;
+  max-height:180px;
+  object-fit:cover;
+  border-radius:8px;
   margin-bottom:8px;
 }
-.popup h3{margin:0 0 6px;color:#d4af37;font-size:1rem;}
-.popup p{margin:0 0 8px;font-size:.9rem;color:#ddd;}
-.popup-actions{text-align:center;}
-.popup-actions button{
-  width:auto;padding:6px 10px;
-  font-size:.8rem;margin:0 4px;
-  border-radius:6px;
+.popup-content p {
+  margin:0;
+  font-size:.95rem;
+  line-height:1.4;
 }
-
-/* ICON FIX */
-.emoji-marker{
-  background:transparent!important;
-  border:none!important;
+.popup-content button {
+  margin-top:8px;
 }
 </style>
 </head>
@@ -135,40 +131,123 @@ button:disabled{opacity:.6;cursor:not-allowed;}
 </div>
 
 <script>
-if(localStorage.getItem('entered')) intro.style.display='none';
-function enterWorld(){localStorage.setItem('entered','yes');intro.style.display='none';}
+const intro = document.getElementById('intro');
 
-const map=L.map('map').setView([48,8],4);
+function enterWorld(){
+  localStorage.setItem('entered','yes');
+  intro.style.display='none';
+  setTimeout(()=>map.invalidateSize(),300);
+}
+
+if(localStorage.getItem('entered')) {
+  intro.style.display='none';
+  setTimeout(()=>map.invalidateSize(),300);
+}
+
+const map = L.map('map').setView([48,8],4);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-let pins=JSON.parse(localStorage.getItem('pins')||'[]');
-let tempLatLng,selectedIcon='❤️',imageData=null,editIndex=null;
+let pins = JSON.parse(localStorage.getItem('pins')||'[]');
+let tempLatLng=null, selectedIcon='❤️', imageData=null, editingIndex=null;
 
-map.on('click',e=>{
-  tempLatLng=e.latlng;
+map.on('click', e=>{
   openModal();
+  tempLatLng=e.latlng;
 });
 
 function openModal(pin=null,index=null){
   modal.classList.add('active');
-  editIndex=index;
-  deleteBtn.style.display=index!==null?'block':'none';
-
-  if(pin){
-    name.value=pin.name;
-    desc.value=pin.desc;
-    selectedIcon=pin.icon;
-    imageData=pin.img;
-    highlightIcon();
-  }else{
-    name.value='';desc.value='';imageData=null;
-  }
+  editingIndex=index;
+  deleteBtn.style.display = pin ? 'block' : 'none';
+  name.value = pin?.name || '';
+  desc.value = pin?.desc || '';
+  imageData = pin?.img || null;
+  selectIcon(pin?.icon || '❤️');
 }
 
 function closeModal(){
   modal.classList.remove('active');
-  editIndex=null;
+  editingIndex=null;
+  imageData=null;
 }
 
-function selectIcon(icon){selectedIcon=icon;highlightIcon();}
-function highlightIco
+function selectIcon(icon){
+  selectedIcon=icon;
+  document.querySelectorAll('.icon-picker span').forEach(s=>s.classList.remove('selected'));
+  [...document.querySelectorAll('.icon-picker span')].find(s=>s.textContent===icon).classList.add('selected');
+}
+
+photo.addEventListener('change', e=>{
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');
+      const max=700;
+      let w=img.width,h=img.height;
+      if(w>h&&w>max){h*=max/w;w=max}
+      else if(h>max){w*=max/h;h=max}
+      c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      imageData=c.toDataURL('image/jpeg',0.7);
+    }
+    img.src=ev.target.result;
+  }
+  reader.readAsDataURL(e.target.files[0]);
+});
+
+function savePin(){
+  saveBtn.textContent='Saving...';
+  saveBtn.disabled=true;
+
+  setTimeout(()=>{
+    const pin={
+      lat:editingIndex!==null?pins[editingIndex].lat:tempLatLng.lat,
+      lng:editingIndex!==null?pins[editingIndex].lng:tempLatLng.lng,
+      name:name.value,
+      desc:desc.value,
+      icon:selectedIcon,
+      img:imageData
+    };
+
+    if(editingIndex!==null) pins[editingIndex]=pin;
+    else pins.push(pin);
+
+    localStorage.setItem('pins',JSON.stringify(pins));
+    location.reload();
+  },300);
+}
+
+function deletePin(){
+  if(editingIndex!==null){
+    pins.splice(editingIndex,1);
+    localStorage.setItem('pins',JSON.stringify(pins));
+    location.reload();
+  }
+}
+
+function addMarker(p,index){
+  const icon=L.divIcon({
+    html:`<div style="font-size:22px;line-height:22px">${p.icon}</div>`,
+    iconSize:[22,22],
+    iconAnchor:[11,11]
+  });
+
+  const m=L.marker([p.lat,p.lng],{icon}).addTo(map);
+  m.on('click',()=>{
+    m.bindPopup(`
+      <div class="popup-content">
+        ${p.img?`<img src="${p.img}">`:''}
+        <strong>${p.name}</strong>
+        <p>${p.desc}</p>
+        <button onclick="openModal(${JSON.stringify(p)},${index})">Edit</button>
+      </div>
+    `).openPopup();
+  });
+}
+
+pins.forEach(addMarker);
+</script>
+
+</body>
+</html>
