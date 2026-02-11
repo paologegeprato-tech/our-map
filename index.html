@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Our World ❤️</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
@@ -16,7 +16,7 @@ html, body {
   overflow:hidden;
 }
 
-/* Romantic intro */
+/* Intro */
 #intro {
   position:fixed;
   width:100%;
@@ -29,11 +29,6 @@ html, body {
   color:white;
   z-index:9999;
   text-align:center;
-}
-
-#intro h1 {
-  font-size:2em;
-  margin-bottom:20px;
 }
 
 #enterBtn {
@@ -52,7 +47,7 @@ html, body {
   width:100%;
 }
 
-/* Side panel */
+/* Side Panel */
 #sidePanel {
   position:fixed;
   top:10px;
@@ -71,30 +66,31 @@ html, body {
   padding:6px;
   border-bottom:1px solid #eee;
   cursor:pointer;
+  font-size:14px;
 }
 
 /* Popup styling */
 .leaflet-popup-content-wrapper {
   border-radius:15px;
+  width:260px !important;
 }
 
 .popup-img {
   width:100%;
-  height:200px;
+  max-height:150px;
   object-fit:contain;
   border-radius:10px;
 }
 
 .iconChoice {
-  font-size:22px;
+  font-size:20px;
   cursor:pointer;
   margin:5px;
 }
 
-.saveBtn {
+.saveBtn, .deleteBtn {
   margin-top:8px;
   padding:8px;
-  background:#ff4d6d;
   border:none;
   color:white;
   border-radius:8px;
@@ -102,16 +98,8 @@ html, body {
   width:100%;
 }
 
-.deleteBtn {
-  margin-top:5px;
-  padding:6px;
-  background:#999;
-  border:none;
-  color:white;
-  border-radius:8px;
-  cursor:pointer;
-  width:100%;
-}
+.saveBtn { background:#ff4d6d; }
+.deleteBtn { background:#999; }
 
 </style>
 </head>
@@ -132,33 +120,61 @@ html, body {
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
+
 let map;
 let memories = JSON.parse(localStorage.getItem("memories") || "[]");
 let markers = [];
+let mapInitialized = false;
 
-document.getElementById("enterBtn").addEventListener("click", function(){
+document.getElementById("enterBtn").onclick = function(){
   document.getElementById("intro").style.display = "none";
   if(!mapInitialized){
     initMap();
     mapInitialized = true;
   }
-});
-
-let mapInitialized = false;
+};
 
 function initMap(){
-  map = L.map('map').setView([20,0],2);
+  map = L.map('map', {closePopupOnClick:true}).setView([20,0],2);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom:18
   }).addTo(map);
 
   map.on("click", function(e){
-    openMemoryPopup(e.latlng);
+    if(!map._popup){
+      openMemoryPopup(e.latlng);
+    }
   });
 
   loadMemories();
 }
+
+/* -------- IMAGE COMPRESSION FUNCTION -------- */
+
+function compressImage(file, callback){
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+  reader.onload = function(event){
+    const img = new Image();
+    img.src = event.target.result;
+    img.onload = function(){
+      const canvas = document.createElement('canvas');
+      const maxWidth = 800;
+      const scale = maxWidth / img.width;
+      canvas.width = maxWidth;
+      canvas.height = img.height * scale;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const compressed = canvas.toDataURL("image/jpeg", 0.7);
+      callback(compressed);
+    }
+  };
+}
+
+/* -------- CREATE / EDIT POPUP -------- */
 
 function openMemoryPopup(latlng, existing=null){
 
@@ -175,14 +191,15 @@ function openMemoryPopup(latlng, existing=null){
     ${existing?'<button class="deleteBtn">Delete</button>':''}
   `;
 
-  let popup = L.popup({maxWidth:300})
+  let popup = L.popup({maxWidth:260, autoPan:true})
     .setLatLng(latlng)
     .setContent(popupContent)
     .openOn(map);
 
-  let selectedIcon = "❤️";
+  let selectedIcon = existing ? existing.icon : "❤️";
 
   setTimeout(()=>{
+
     document.querySelectorAll(".iconChoice").forEach(icon=>{
       icon.onclick=()=> selectedIcon = icon.textContent;
     });
@@ -193,13 +210,11 @@ function openMemoryPopup(latlng, existing=null){
       let file = document.getElementById("photoInput").files[0];
 
       if(file){
-        let reader = new FileReader();
-        reader.onload = function(evt){
-          saveMemory(latlng,name,desc,evt.target.result,selectedIcon);
-        };
-        reader.readAsDataURL(file);
+        compressImage(file, function(compressed){
+          saveMemory(latlng,name,desc,compressed,selectedIcon);
+        });
       } else {
-        saveMemory(latlng,name,desc,null,selectedIcon);
+        saveMemory(latlng,name,desc,existing?existing.image:null,selectedIcon);
       }
     };
 
@@ -207,15 +222,18 @@ function openMemoryPopup(latlng, existing=null){
       document.querySelector(".deleteBtn").onclick=function(){
         memories = memories.filter(m=>m.id!==existing.id);
         localStorage.setItem("memories",JSON.stringify(memories));
-        map.closePopup();
         loadMemories();
+        map.closePopup();
       };
     }
 
   },100);
 }
 
+/* -------- SAVE MEMORY -------- */
+
 function saveMemory(latlng,name,desc,image,icon){
+
   let memory = {
     id: Date.now(),
     lat:latlng.lat,
@@ -226,33 +244,39 @@ function saveMemory(latlng,name,desc,image,icon){
     icon:icon,
     date:new Date().toLocaleDateString()
   };
+
   memories.push(memory);
   localStorage.setItem("memories",JSON.stringify(memories));
-  map.closePopup();
   loadMemories();
+  map.closePopup();
 }
 
+/* -------- LOAD MEMORIES -------- */
+
 function loadMemories(){
+
   markers.forEach(m=>map.removeLayer(m));
   markers=[];
   document.getElementById("memoryList").innerHTML="";
 
   memories.forEach(mem=>{
+
     let marker = L.marker([mem.lat,mem.lng],{
       icon:L.divIcon({
         className:"",
-        html:`<div style="font-size:18px;">${mem.icon}</div>`
+        html:`<div style="font-size:16px;">${mem.icon}</div>`,
+        iconSize:[20,20]
       })
     }).addTo(map);
 
     marker.on("click",()=>{
       let content=`
-        <h3>${mem.name}</h3>
+        <h4>${mem.name}</h4>
         ${mem.image?`<img src="${mem.image}" class="popup-img">`:""}
-        <p>${mem.desc}</p>
+        <p style="font-size:13px;">${mem.desc}</p>
         <small>${mem.date}</small>
       `;
-      marker.bindPopup(content,{maxWidth:300}).openPopup();
+      marker.bindPopup(content,{maxWidth:260}).openPopup();
     });
 
     markers.push(marker);
@@ -264,7 +288,7 @@ function loadMemories(){
     document.getElementById("memoryList").appendChild(item);
   });
 }
-</script>
 
+</script>
 </body>
 </html>
