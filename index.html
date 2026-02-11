@@ -9,81 +9,188 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
-html,body{margin:0;height:100%;background:#0a0e13;color:#f0ebe5;font-family:Arial}
+html,body{
+  margin:0;
+  height:100%;
+  font-family:Arial, sans-serif;
+  background:#0a0e13;
+  color:#f0ebe5;
+}
+
 #map{height:100%}
 .leaflet-div-icon{background:none;border:none}
 
-/* INTRO */
+/* ---------------- INTRO ---------------- */
+
 #intro{
-  position:fixed;inset:0;background:#0a0e13;
-  display:flex;flex-direction:column;
-  justify-content:center;align-items:center;
-  z-index:3000;text-align:center
-}
-#intro h1{color:#d4af37;font-size:2.4rem}
-#intro p{color:#ccc;max-width:320px}
-#intro button{
-  margin-top:30px;padding:14px 26px;
-  background:#d4af37;border:none;
-  font-size:1.1rem;font-weight:bold;
-  border-radius:8px;cursor:pointer
+  position:fixed;
+  inset:0;
+  background:#0a0e13;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  z-index:5000;
+  overflow:hidden;
 }
 
-/* MODAL */
+#intro::before{
+  content:"❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤";
+  position:absolute;
+  font-size:4rem;
+  color:rgba(139,0,0,0.05);
+  animation:floatHearts 18s linear infinite;
+}
+
+@keyframes floatHearts{
+  0%{transform:translateY(-20px)}
+  50%{transform:translateY(40px)}
+  100%{transform:translateY(-20px)}
+}
+
+#intro h1{
+  color:#d4af37;
+  font-size:2.4rem;
+  z-index:2;
+}
+
+#intro p{color:#ccc;z-index:2}
+
+#intro button{
+  margin-top:30px;
+  padding:14px 26px;
+  background:#d4af37;
+  border:none;
+  font-weight:bold;
+  border-radius:8px;
+  cursor:pointer;
+  z-index:2;
+  transition:0.3s;
+}
+#intro button:hover{transform:scale(1.05)}
+
+/* ---------------- MODALS ---------------- */
+
 .modal{
-  position:fixed;inset:0;
-  background:rgba(0,0,0,.92);
-  display:none;align-items:center;justify-content:center;
-  z-index:2000
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.9);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:4000;
 }
 .modal.active{display:flex}
+
 .modal-content{
-  background:#1a1a1a;padding:22px;
-  width:90%;max-width:420px;
-  border-radius:12px;border:1px solid #d4af37
+  background:#1a1a1a;
+  width:90%;
+  max-width:420px;
+  padding:20px;
+  border-radius:12px;
+  border:1px solid #d4af37;
+  max-height:85vh;
+  overflow:auto;
+  animation:fadeIn .25s ease;
 }
+
+@keyframes fadeIn{
+  from{opacity:0;transform:scale(.95)}
+  to{opacity:1;transform:scale(1)}
+}
+
 input,textarea{
-  width:100%;padding:10px;margin-bottom:12px;
-  background:#222;border:1px solid #555;color:#fff;
-  border-radius:6px
+  width:100%;
+  padding:10px;
+  margin-bottom:12px;
+  background:#222;
+  border:1px solid #555;
+  color:#fff;
+  border-radius:6px;
 }
-.icon-picker{text-align:center;margin-bottom:12px}
-.icon-picker span{font-size:2rem;margin:0 10px;cursor:pointer}
-.icon-picker .selected{transform:scale(1.3)}
 
 button{
-  width:100%;padding:12px;
-  border:none;border-radius:6px;
-  font-weight:bold;cursor:pointer
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:6px;
+  font-weight:bold;
+  cursor:pointer;
 }
-.save{background:#d4af37}
+
+.save{background:#d4af37;color:#000}
 .cancel{background:#555;margin-top:8px}
 .delete{background:#8b0000;margin-top:8px}
 
-/* POPUP */
+/* ---------------- POPUP ---------------- */
+
+.popup{
+  width:260px;
+}
+
 .popup img{
   width:100%;
-  max-height:160px;
+  height:160px;
   object-fit:cover;
   border-radius:8px;
   margin-bottom:6px;
-  cursor:pointer
+  cursor:pointer;
 }
-.popup p{margin:0;font-size:.95rem}
-.popup button{margin-top:6px}
 
-/* FULL IMAGE */
+.popup p{
+  font-size:.9rem;
+  margin:4px 0;
+}
+
+.popup button{
+  margin-top:6px;
+}
+
+/* ---------------- VIEWER ---------------- */
+
 #viewer{
-  position:fixed;inset:0;
+  position:fixed;
+  inset:0;
   background:rgba(0,0,0,.95);
-  display:none;align-items:center;justify-content:center;
-  z-index:4000
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:6000;
 }
 #viewer img{
   max-width:90%;
   max-height:90%;
-  border-radius:10px
+  border-radius:12px;
 }
+
+/* ---------------- LIST BUTTON ---------------- */
+
+#listBtn{
+  position:absolute;
+  bottom:18px;
+  left:18px;
+  z-index:3000;
+  font-size:1.8rem;
+  background:#d4af37;
+  border:none;
+  padding:6px 10px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+/* ---------------- SAVE HEART ANIMATION ---------------- */
+
+@keyframes pulseHeart{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.4)}
+  100%{transform:scale(1)}
+}
+
+.heartPulse{
+  animation:pulseHeart .6s ease;
+}
+
 </style>
 </head>
 
@@ -96,20 +203,24 @@ button{
 </div>
 
 <div id="map"></div>
+<button id="listBtn">✈️</button>
 
-<div class="modal" id="modal">
+<div class="modal" id="memoryModal">
   <div class="modal-content">
-    <input id="name" placeholder="Place name">
-    <textarea id="desc" placeholder="Why this place matters"></textarea>
-    <input type="file" id="photo" accept="image/*">
-    <div class="icon-picker">
-      <span onclick="pick('🍔')">🍔</span>
-      <span onclick="pick('❤️')" class="selected">❤️</span>
-      <span onclick="pick('✈️')">✈️</span>
-    </div>
-    <button class="save" onclick="save()">Save ❤️</button>
+    <input id="placeName" placeholder="Place name">
+    <textarea id="placeDesc" placeholder="Why this place matters"></textarea>
+    <input type="file" id="placePhoto" accept="image/*">
+    <button class="save" id="saveBtn">Save ❤️</button>
     <button class="cancel" onclick="closeModal()">Cancel</button>
-    <button class="delete" id="delBtn" onclick="remove()">Delete</button>
+    <button class="delete" id="deleteBtn">Delete</button>
+  </div>
+</div>
+
+<div class="modal" id="listModal">
+  <div class="modal-content">
+    <h3 style="color:#d4af37;">Our Places</h3>
+    <ul id="placesList"></ul>
+    <button class="cancel" onclick="closeList()">Close</button>
   </div>
 </div>
 
@@ -118,116 +229,171 @@ button{
 </div>
 
 <script>
-/* INTRO FIX */
-if(localStorage.entered){
-  intro.style.display='none';
-  setTimeout(()=>map.invalidateSize(),300);
-}
+
+/* -------- INTRO -------- */
 function enterWorld(){
-  localStorage.entered=true;
-  intro.style.display='none';
+  document.getElementById("intro").style.display="none";
   setTimeout(()=>map.invalidateSize(),300);
 }
 
-/* MAP */
-const map=L.map('map').setView([48,8],4);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+/* -------- MAP -------- */
+const map=L.map("map").setView([48,8],4);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-let pins=JSON.parse(localStorage.getItem('pins')||'[]');
-let editIndex=null,tempLatLng=null,icon='❤️',imgData=null;
+let pins=JSON.parse(localStorage.getItem("pins")||"[]");
+let editIndex=null;
+let tempLatLng=null;
+let imageData=null;
 
-/* ICON */
-function pick(i){
-  icon=i;
-  document.querySelectorAll('.icon-picker span').forEach(s=>s.classList.remove('selected'));
-  [...document.querySelectorAll('.icon-picker span')].find(s=>s.textContent===i).classList.add('selected');
-}
+/* -------- IMAGE FAST COMPRESSION -------- */
+document.getElementById("placePhoto").addEventListener("change",function(e){
+  const file=e.target.files[0];
+  if(!file) return;
 
-/* IMAGE */
-photo.onchange=e=>{
-  const r=new FileReader();
-  r.onload=ev=>imgData=ev.target.result;
-  r.readAsDataURL(e.target.files[0]);
-};
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const img=new Image();
+    img.onload=function(){
+      const canvas=document.createElement("canvas");
+      const max=800;
+      let w=img.width,h=img.height;
+      if(w>max||h>max){
+        if(w>h){h=h*max/w;w=max;}
+        else{w=w*max/h;h=max;}
+      }
+      canvas.width=w;
+      canvas.height=h;
+      canvas.getContext("2d").drawImage(img,0,0,w,h);
+      imageData=canvas.toDataURL("image/jpeg",0.7);
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
 
-/* MODAL */
-map.on('click',e=>{
+/* -------- MAP CLICK -------- */
+map.on("click",e=>{
   editIndex=null;
   tempLatLng=e.latlng;
-  delBtn.style.display='none';
-  modal.classList.add('active');
+  document.getElementById("deleteBtn").style.display="none";
+  openModal();
 });
-function closeModal(){
-  modal.classList.remove('active');
-  imgData=null;
-}
 
-/* SAVE */
-function save(){
-  const data={
-    lat:editIndex!==null?pins[editIndex].lat:tempLatLng.lat,
-    lng:editIndex!==null?pins[editIndex].lng:tempLatLng.lng,
-    name:name.value,desc:desc.value,icon,img:imgData
-  };
-  if(editIndex!==null)pins[editIndex]=data;
-  else pins.push(data);
-  localStorage.setItem('pins',JSON.stringify(pins));
-  render();
-  closeModal();
-}
+/* -------- SAVE -------- */
+document.getElementById("saveBtn").onclick=function(){
+  const btn=this;
+  btn.textContent="Saving...";
+  btn.disabled=true;
 
-/* DELETE */
-function remove(){
+  setTimeout(()=>{
+    const data={
+      lat:editIndex!==null?pins[editIndex].lat:tempLatLng.lat,
+      lng:editIndex!==null?pins[editIndex].lng:tempLatLng.lng,
+      name:document.getElementById("placeName").value,
+      desc:document.getElementById("placeDesc").value,
+      img:imageData
+    };
+
+    if(editIndex!==null) pins[editIndex]=data;
+    else pins.push(data);
+
+    localStorage.setItem("pins",JSON.stringify(pins));
+    renderPins();
+
+    btn.classList.add("heartPulse");
+    setTimeout(()=>btn.classList.remove("heartPulse"),600);
+
+    closeModal();
+    btn.textContent="Save ❤️";
+    btn.disabled=false;
+  },150);
+};
+
+/* -------- DELETE -------- */
+document.getElementById("deleteBtn").onclick=function(){
   pins.splice(editIndex,1);
-  localStorage.setItem('pins',JSON.stringify(pins));
-  render();
+  localStorage.setItem("pins",JSON.stringify(pins));
+  renderPins();
   closeModal();
-}
+};
 
-/* RENDER */
+/* -------- RENDER -------- */
 let markers=[];
-function render(){
+function renderPins(){
   markers.forEach(m=>map.removeLayer(m));
   markers=[];
   pins.forEach((p,i)=>{
-    const m=L.marker([p.lat,p.lng],{
+    const marker=L.marker([p.lat,p.lng],{
       icon:L.divIcon({
-        html:`<div style="font-size:20px">${p.icon}</div>`,
-        iconSize:[20,20],iconAnchor:[10,10]
+        html:`<div style="font-size:18px">❤️</div>`,
+        iconSize:[18,18],
+        iconAnchor:[9,9]
       })
     }).addTo(map);
 
-    m.bindPopup(`
-      <div class="popup">
-        ${p.img?`<img src="${p.img}" onclick="view('${p.img}')">`:''}
-        <strong>${p.name}</strong>
-        <p>${p.desc}</p>
-        <button onclick="edit(${i})">Edit</button>
-      </div>
-    `);
-    markers.push(m);
-  });
-}
-render();
+    marker.on("click",()=>{
+      const popupContent=document.createElement("div");
+      popupContent.className="popup";
+      popupContent.innerHTML=`
+        ${p.img?`<img src="${p.img}" onclick="viewImage('${p.img}')">`:""}
+        <strong>${p.name||"Our Memory"}</strong>
+        <p>${p.desc||""}</p>
+        <button onclick="editPin(${i})">Edit</button>
+      `;
+      marker.bindPopup(popupContent,{maxWidth:280}).openPopup();
+    });
 
-/* EDIT */
-function edit(i){
+    markers.push(marker);
+  });
+
+  renderList();
+}
+renderPins();
+
+/* -------- EDIT -------- */
+function editPin(i){
   editIndex=i;
   const p=pins[i];
-  name.value=p.name;
-  desc.value=p.desc;
-  imgData=p.img;
-  pick(p.icon);
-  delBtn.style.display='block';
-  modal.classList.add('active');
+  document.getElementById("placeName").value=p.name;
+  document.getElementById("placeDesc").value=p.desc;
+  imageData=p.img;
+  document.getElementById("deleteBtn").style.display="block";
+  openModal();
 }
 
-/* VIEW IMAGE */
-function view(src){
-  viewerImg.src=src;
-  viewer.style.display='flex';
+/* -------- VIEW IMAGE -------- */
+function viewImage(src){
+  document.getElementById("viewerImg").src=src;
+  document.getElementById("viewer").style.display="flex";
 }
+
+/* -------- LIST -------- */
+document.getElementById("listBtn").onclick=function(){
+  document.getElementById("listModal").classList.add("active");
+};
+
+function renderList(){
+  const list=document.getElementById("placesList");
+  list.innerHTML="";
+  pins.forEach(p=>{
+    const li=document.createElement("li");
+    li.textContent=p.name;
+    list.appendChild(li);
+  });
+}
+
+function closeList(){
+  document.getElementById("listModal").classList.remove("active");
+}
+
+/* -------- MODAL -------- */
+function openModal(){
+  document.getElementById("memoryModal").classList.add("active");
+}
+function closeModal(){
+  document.getElementById("memoryModal").classList.remove("active");
+}
+
 </script>
-
 </body>
 </html>
