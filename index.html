@@ -3,309 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Our World ❤️</title>
-
+<title>Test</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <style>
-html, body {
-  margin:0;
-  padding:0;
-  height:100%;
-  font-family: Arial, sans-serif;
-  background:#0d0d0d;
-}
-
-#map {
-  height:100%;
-  width:100%;
-}
-
-/* ===== INTRO ===== */
-#intro {
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:linear-gradient(135deg,#2a0000,#000000);
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  z-index:9999;
-  color:white;
-  text-align:center;
-  overflow:hidden;
-}
-
-#intro h1 {
-  font-size:2.2rem;
-  margin-bottom:30px;
-}
-
-#intro button {
-  padding:15px 30px;
-  font-size:18px;
-  border:none;
-  border-radius:8px;
-  background:#8b0000;
-  color:white;
-  cursor:pointer;
-}
-
-#intro::before {
-  content:"❤️ ❤️ ❤️ ❤️ ❤️ ❤️ ❤️ ❤️ ❤️ ❤️";
-  position:absolute;
-  opacity:0.05;
-  font-size:80px;
-  transform:rotate(-20deg);
-}
-
-/* ===== POPUP IMAGE ===== */
-.popup-img {
-  width:100%;
-  max-height:220px;
-  object-fit:contain;
-  border-radius:8px;
-  margin-bottom:10px;
-}
-
-/* ===== ADD PANEL ===== */
-#addPanel {
-  position:fixed;
-  bottom:0;
-  left:0;
-  width:100%;
-  background:#1a1a1a;
-  padding:15px;
-  display:none;
-  z-index:2000;
-  box-shadow:0 -2px 10px rgba(0,0,0,0.5);
-}
-
-#addPanel input,
-#addPanel select {
-  width:100%;
-  padding:8px;
-  margin-bottom:8px;
-}
-
-#addPanel button {
-  padding:8px 12px;
-  margin-right:5px;
-}
-
-.location-item {
-  padding:8px;
-  border-bottom:1px solid #333;
-  cursor:pointer;
-  color:white;
-}
-
-/* ===== SIDE PANEL ===== */
-#locationsPanel {
-  position:fixed;
-  top:0;
-  left:0;
-  width:200px;
-  height:100%;
-  background:#111;
-  overflow-y:auto;
-  z-index:1000;
-}
-
-#map {
-  margin-left:200px;
+html,body,#map{height:100%;margin:0;}
+#intro{
+position:fixed;
+top:0;left:0;
+width:100%;height:100%;
+background:black;
+display:flex;
+justify-content:center;
+align-items:center;
+color:white;
+z-index:9999;
 }
 </style>
 </head>
-
 <body>
 
 <div id="intro">
-  <h1>Welcome to Our World ❤️</h1>
-  <button onclick="enterWorld()">Enter Our World</button>
-</div>
-
-<div id="locationsPanel">
-  <h3 style="color:white;text-align:center;">Places ✈️</h3>
-  <div id="locationsContainer"></div>
+<button onclick="start()">ENTER</button>
 </div>
 
 <div id="map"></div>
 
-<div id="addPanel">
-  <input id="placeName" placeholder="Place name">
-  <input id="description" placeholder="Description">
-  <input type="file" id="photoInput" accept="image/*">
-  <select id="iconSelect">
-    <option value="❤️">❤️</option>
-    <option value="🍔">🍔</option>
-    <option value="✈️">✈️</option>
-  </select>
-  <button id="saveBtn">Save</button>
-  <button onclick="closeAdd()">Cancel</button>
-</div>
-
 <script>
-
 let map;
-let markers = [];
-let selectedLatLng = null;
 
-/* ===== ENTER WORLD ===== */
-function enterWorld(){
-  document.getElementById("intro").remove();
-  initMap();
-}
-
-/* ===== INIT MAP ===== */
-function initMap(){
+function start(){
+  document.getElementById("intro").style.display="none";
   map = L.map('map').setView([20,0],2);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
-
-  loadMarkers();
-
-  map.on('click', function(e){
-    selectedLatLng = e.latlng;
-    document.getElementById("addPanel").style.display = "block";
-  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 }
-
-/* ===== SAVE MEMORY ===== */
-document.getElementById("saveBtn").addEventListener("click", function(){
-
-  const name = placeName.value.trim();
-  const desc = description.value.trim();
-  const file = photoInput.files[0];
-  const icon = iconSelect.value;
-
-  if(!name || !selectedLatLng) return;
-
-  this.innerText="Saving...";
-  this.disabled=true;
-
-  if(file){
-    const reader = new FileReader();
-    reader.onload = function(e){
-      storeMemory(name, desc, e.target.result, icon);
-    };
-    reader.readAsDataURL(file);
-  } else {
-    storeMemory(name, desc, null, icon);
-  }
-
-});
-
-function storeMemory(name, desc, img, icon){
-
-  markers.push({
-    name,
-    desc,
-    image:img,
-    lat:selectedLatLng.lat,
-    lng:selectedLatLng.lng,
-    icon
-  });
-
-  localStorage.setItem("ourWorldMemories", JSON.stringify(markers));
-
-  renderMarkers();
-
-  saveBtn.innerText="Save";
-  saveBtn.disabled=false;
-
-  closeAdd();
-}
-
-/* ===== LOAD ===== */
-function loadMarkers(){
-  const saved = localStorage.getItem("ourWorldMemories");
-  if(saved){
-    markers = JSON.parse(saved);
-  }
-  renderMarkers();
-}
-
-/* ===== RENDER ===== */
-function renderMarkers(){
-
-  if(!map) return;
-
-  map.eachLayer(function(layer){
-    if(layer instanceof L.Marker){
-      map.removeLayer(layer);
-    }
-  });
-
-  locationsContainer.innerHTML="";
-
-  markers.forEach(function(m,i){
-
-    const customIcon = L.divIcon({
-      html:`<div style="font-size:18px;">${m.icon}</div>`,
-      className:'',
-      iconSize:[24,24]
-    });
-
-    const marker = L.marker([m.lat,m.lng],{icon:customIcon}).addTo(map);
-
-    marker.on('click', function(){
-
-      const content = `
-        <h3>${m.name}</h3>
-        ${m.image ? `<img src="${m.image}" class="popup-img">` : ''}
-        <p>${m.desc}</p>
-        <button onclick="editMemory(${i})">Edit</button>
-        <button onclick="deleteMemory(${i})">Delete</button>
-      `;
-
-      marker.bindPopup(content,{maxWidth:280}).openPopup();
-
-    });
-
-    const item = document.createElement("div");
-    item.className="location-item";
-    item.innerText=m.name;
-    item.onclick=function(){
-      map.setView([m.lat,m.lng],6);
-    };
-
-    locationsContainer.appendChild(item);
-  });
-}
-
-/* ===== DELETE ===== */
-function deleteMemory(index){
-  markers.splice(index,1);
-  localStorage.setItem("ourWorldMemories", JSON.stringify(markers));
-  renderMarkers();
-}
-
-/* ===== EDIT ===== */
-function editMemory(index){
-  const m = markers[index];
-
-  selectedLatLng = {lat:m.lat,lng:m.lng};
-  placeName.value=m.name;
-  description.value=m.desc;
-  iconSelect.value=m.icon;
-
-  deleteMemory(index);
-
-  document.getElementById("addPanel").style.display="block";
-}
-
-/* ===== CLOSE ===== */
-function closeAdd(){
-  document.getElementById("addPanel").style.display="none";
-}
-
 </script>
 
 </body>
