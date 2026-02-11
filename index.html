@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Our Memory Map ❤️</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+html,body{
+margin:0;
+padding:0;
+height:100%;
+font-family:Arial, sans-serif;
+background:#111;
+overflow:hidden;
+}
+
+/* INTRO SCREEN */
+#intro{
+position:fixed;
+top:0;left:0;
+width:100%;height:100%;
+background:#000;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+color:white;
+z-index:9999;
+transition:opacity 0.5s ease;
+}
+
+#intro button{
+padding:15px 30px;
+font-size:18px;
+border:none;
+border-radius:30px;
+background:#ff4d6d;
+color:white;
+cursor:pointer;
+}
+
+/* MAP */
+#map{
+position:absolute;
+top:0;
+left:300px;
+right:0;
+bottom:0;
+}
+
+/* SIDE PANEL */
+#panel{
+position:absolute;
+top:0;
+left:0;
+width:300px;
+height:100%;
+background:#1a1a1a;
+color:white;
+overflow-y:auto;
+padding:20px;
+box-sizing:border-box;
+border-right:1px solid #333;
+}
+
+#panel h2{
+margin-top:0;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+#memoryCount{
+background:#ff4d6d;
+padding:4px 10px;
+border-radius:20px;
+font-size:14px;
+}
+
+.memory-item{
+padding:10px;
+margin-bottom:10px;
+background:#2a2a2a;
+border-radius:10px;
+cursor:pointer;
+}
+
+.memory-item:hover{
+background:#333;
+}
+
+/* POPUP IMAGE */
+.popup-img{
+width:220px;
+height:auto;
+max-height:250px;
+object-fit:contain;
+border-radius:10px;
+display:block;
+margin:auto;
+}
+
+/* HEART ANIMATION */
+.heart{
+position:fixed;
+font-size:40px;
+color:#ff4d6d;
+animation:floatUp 1s ease forwards;
+pointer-events:none;
+}
+
+@keyframes floatUp{
+0%{opacity:1; transform:translateY(0);}
+100%{opacity:0; transform:translateY(-100px);}
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- INTRO -->
+<div id="intro">
+<h1>Welcome to Our World ❤️</h1>
+<button onclick="enterWorld()">Enter Our World</button>
+</div>
+
+<!-- SIDE PANEL -->
+<div id="panel">
+<h2>Memories <span id="memoryCount">0</span></h2>
+<div id="memoryList"></div>
+</div>
+
+<!-- MAP -->
+<div id="map"></div>
+
+<script>
+
+let map;
+let memories = [];
+
+/* ENTER BUTTON FIXED */
+function enterWorld(){
+const intro = document.getElementById("intro");
+intro.style.opacity="0";
+setTimeout(()=> intro.style.display="none",500);
+initializeMap();
+}
+
+/* INITIALIZE MAP */
+function initializeMap(){
+map = L.map('map',{zoomControl:true}).setView([20,0],2);
+
+/* DARK MAP THEME */
+L.tileLayer(
+'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+{
+attribution:'©OpenStreetMap ©CartoDB'
+}).addTo(map);
+
+/* LOAD CLOUD STORAGE (Firebase ready placeholder) */
+loadMemories();
+
+/* CLICK TO ADD MEMORY */
+map.on('click',function(e){
+const title = prompt("Memory title:");
+if(!title) return;
+
+const imgURL = prompt("Paste image URL:");
+if(!imgURL) return;
+
+const memory = {
+lat:e.latlng.lat,
+lng:e.latlng.lng,
+title:title,
+img:imgURL,
+date:new Date().toLocaleDateString()
+};
+
+memories.push(memory);
+saveMemories();
+addMarker(memory);
+updatePanel();
+showHeart();
+});
+}
+
+/* ADD MARKER */
+function addMarker(memory){
+const marker = L.marker([memory.lat,memory.lng]).addTo(map);
+
+marker.bindPopup(`
+<h3>${memory.title}</h3>
+<p>${memory.date}</p>
+<img src="${memory.img}" class="popup-img">
+`);
+}
+
+/* UPDATE SIDE PANEL */
+function updatePanel(){
+const list = document.getElementById("memoryList");
+list.innerHTML="";
+memories.forEach((m,index)=>{
+const div=document.createElement("div");
+div.className="memory-item";
+div.innerHTML=`<strong>${m.title}</strong><br><small>${m.date}</small>`;
+div.onclick=function(){
+map.setView([m.lat,m.lng],6);
+};
+list.appendChild(div);
+});
+document.getElementById("memoryCount").innerText=memories.length;
+}
+
+/* HEART ANIMATION */
+function showHeart(){
+const heart=document.createElement("div");
+heart.className="heart";
+heart.innerHTML="❤️";
+heart.style.left=(window.innerWidth/2)+"px";
+heart.style.top=(window.innerHeight/2)+"px";
+document.body.appendChild(heart);
+setTimeout(()=>heart.remove(),1000);
+}
+
+/* STORAGE (TEMP LOCAL) */
+function saveMemories(){
+localStorage.setItem("ourMemories",JSON.stringify(memories));
+}
+
+function loadMemories(){
+const stored=localStorage.getItem("ourMemories");
+if(stored){
+memories=JSON.parse(stored);
+memories.forEach(addMarker);
+updatePanel();
+}
+}
+
+</script>
+
+</body>
+</html>
