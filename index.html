@@ -171,12 +171,21 @@ let map;
 let markers = [];
 let selectedLatLng = null;
 
-document.getElementById("enterBtn").onclick = function(){
-  document.getElementById("intro").style.display="none";
-  initMap();
-};
+/* ===== INTRO FIX ===== */
+document.addEventListener("DOMContentLoaded", function(){
 
+  document.getElementById("enterBtn").addEventListener("click", function(){
+    document.getElementById("intro").style.display="none";
+    initMap();
+  });
+
+});
+
+/* ===== INIT MAP ===== */
 function initMap(){
+
+  if(map) return; // prevent double init
+
   map = L.map('map').setView([51.505, -0.09], 3);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -191,11 +200,14 @@ function initMap(){
   });
 }
 
+/* ===== CLOSE ADD PANEL ===== */
 function closeAdd(){
   document.getElementById("addPanel").style.display="none";
 }
 
+/* ===== SAVE MEMORY ===== */
 document.getElementById("saveBtn").onclick = function(){
+
   const name = document.getElementById("placeName").value;
   const desc = document.getElementById("description").value;
   const file = document.getElementById("photoInput").files[0];
@@ -207,15 +219,16 @@ document.getElementById("saveBtn").onclick = function(){
   this.disabled=true;
 
   const reader = new FileReader();
-  reader.onload = function(e){
+
+  reader.onload = (e)=>{
 
     const memory = {
-      name,
-      desc,
+      name:name,
+      desc:desc,
       image:e.target.result,
       lat:selectedLatLng.lat,
       lng:selectedLatLng.lng,
-      icon
+      icon:icon
     };
 
     saveMarker(memory);
@@ -230,14 +243,17 @@ document.getElementById("saveBtn").onclick = function(){
   } else {
     reader.onload({target:{result:null}});
   }
+
 };
 
+/* ===== SAVE TO STORAGE ===== */
 function saveMarker(memory){
   markers.push(memory);
   localStorage.setItem("ourWorldMemories", JSON.stringify(markers));
   renderMarkers();
 }
 
+/* ===== LOAD ===== */
 function loadMarkers(){
   const saved = localStorage.getItem("ourWorldMemories");
   if(saved){
@@ -246,11 +262,15 @@ function loadMarkers(){
   renderMarkers();
 }
 
+/* ===== RENDER ===== */
 function renderMarkers(){
+
   if(!map) return;
 
   map.eachLayer(function(layer){
-    if(layer instanceof L.Marker) map.removeLayer(layer);
+    if(layer instanceof L.Marker){
+      map.removeLayer(layer);
+    }
   });
 
   document.getElementById("locationsContainer").innerHTML="";
@@ -258,44 +278,54 @@ function renderMarkers(){
   markers.forEach((m,i)=>{
 
     const icon = L.divIcon({
-      html: `<div class="heart-marker">${m.icon}</div>`,
+      html:`<div style="font-size:18px;">${m.icon}</div>`,
       className:'',
-      iconSize:[25,25]
+      iconSize:[24,24]
     });
 
     const marker = L.marker([m.lat,m.lng],{icon}).addTo(map);
 
     marker.on('click', function(){
+
       const popupContent = `
-        <div class="fixed-popup">
-          <h3>${m.name}</h3>
+        <div style="width:260px;">
+          <h3 style="margin:5px 0;">${m.name}</h3>
           ${m.image ? `<img src="${m.image}" class="popup-img"/>` : ''}
-          <p>${m.desc}</p>
+          <p style="font-size:14px;">${m.desc}</p>
           <button onclick="editMemory(${i})">Edit</button>
           <button onclick="deleteMemory(${i})">Delete</button>
         </div>
       `;
-      marker.bindPopup(popupContent).openPopup();
+
+      marker.bindPopup(popupContent, {
+        maxWidth:300,
+        autoPan:true,
+        closeOnClick:true
+      }).openPopup();
     });
 
+    /* Location list */
     const item = document.createElement("div");
     item.className="location-item";
-    item.innerText=m.name;
-    item.onclick=function(){
+    item.innerText = m.name;
+    item.onclick = function(){
       map.setView([m.lat,m.lng],8);
     };
 
     document.getElementById("locationsContainer").appendChild(item);
 
   });
+
 }
 
+/* ===== DELETE ===== */
 function deleteMemory(index){
   markers.splice(index,1);
   localStorage.setItem("ourWorldMemories", JSON.stringify(markers));
   renderMarkers();
 }
 
+/* ===== EDIT ===== */
 function editMemory(index){
   const m = markers[index];
   selectedLatLng = {lat:m.lat,lng:m.lng};
@@ -308,5 +338,7 @@ function editMemory(index){
 
 </script>
 
+
 </body>
 </html>
+
