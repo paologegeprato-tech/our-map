@@ -160,156 +160,208 @@ html, body {
 </div>
 
 <script>
-let map;
+
+let map = null;
 let markers = [];
 let selectedLatLng = null;
 
-/* ===== SAFE INIT ===== */
-window.onload = function(){
-  document.getElementById("enterBtn").onclick = startApp;
-};
+/* ===== SAFE START ===== */
+document.addEventListener("DOMContentLoaded", function() {
 
-function startApp(){
-  document.getElementById("intro").style.display="none";
+    const enterBtn = document.getElementById("enterBtn");
 
-  setTimeout(()=>{
-    initMap();
-  },100);
-}
+    enterBtn.addEventListener("click", function() {
+
+        const intro = document.getElementById("intro");
+
+        // Hide intro immediately
+        intro.style.display = "none";
+
+        // Small delay to allow layout repaint
+        setTimeout(function() {
+
+            if (!map) {
+                initMap();
+            } else {
+                map.invalidateSize();
+            }
+
+        }, 50);
+    });
+
+});
+
 
 /* ===== INIT MAP ===== */
-function initMap(){
-  if(map) return;
+function initMap() {
 
-  map = L.map('map',{zoomControl:true}).setView([20,0],2);
+    map = L.map('map').setView([20, 0], 2);
 
-  L.tileLayer(
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    {attribution:'© OpenStreetMap'}
-  ).addTo(map);
+    L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { attribution: '© OpenStreetMap' }
+    ).addTo(map);
 
-  loadMarkers();
+    loadMarkers();
 
-  map.on('click', function(e){
-    selectedLatLng = e.latlng;
-    document.getElementById("addPanel").style.display="block";
-  });
+    map.on('click', function(e) {
+        selectedLatLng = e.latlng;
+        document.getElementById("addPanel").style.display = "block";
+    });
+
 }
 
-/* ===== CLOSE PANEL ===== */
-function closeAdd(){
-  document.getElementById("addPanel").style.display="none";
+
+/* ===== CLOSE ADD PANEL ===== */
+function closeAdd() {
+    document.getElementById("addPanel").style.display = "none";
 }
 
-/* ===== SAVE ===== */
-document.getElementById("saveBtn").onclick = function(){
 
-  const name = placeName.value.trim();
-  const desc = description.value.trim();
-  const file = photoInput.files[0];
-  const icon = iconSelect.value;
+/* ===== SAVE MEMORY ===== */
+document.getElementById("saveBtn").addEventListener("click", function() {
 
-  if(!name || !selectedLatLng) return;
+    const name = placeName.value.trim();
+    const desc = description.value.trim();
+    const file = photoInput.files[0];
+    const icon = iconSelect.value;
 
-  this.innerText="Saving...";
-  this.disabled=true;
+    if (!name || !selectedLatLng) return;
 
-  if(file){
-    const reader = new FileReader();
-    reader.onload = e=>{
-      storeMemory(name,desc,e.target.result,icon);
-    };
-    reader.readAsDataURL(file);
-  }else{
-    storeMemory(name,desc,null,icon);
-  }
-};
+    this.innerText = "Saving...";
+    this.disabled = true;
 
-function storeMemory(name,desc,img,icon){
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            storeMemory(name, desc, e.target.result, icon);
+        };
+        reader.readAsDataURL(file);
+    } else {
+        storeMemory(name, desc, null, icon);
+    }
 
-  markers.push({
-    name:name,
-    desc:desc,
-    image:img,
-    lat:selectedLatLng.lat,
-    lng:selectedLatLng.lng,
-    icon:icon
-  });
+});
 
-  localStorage.setItem("ourWorldMemories",JSON.stringify(markers));
 
-  renderMarkers();
+function storeMemory(name, desc, img, icon) {
 
-  saveBtn.innerText="Save";
-  saveBtn.disabled=false;
-  closeAdd();
+    markers.push({
+        name: name,
+        desc: desc,
+        image: img,
+        lat: selectedLatLng.lat,
+        lng: selectedLatLng.lng,
+        icon: icon
+    });
+
+    localStorage.setItem("ourWorldMemories", JSON.stringify(markers));
+
+    renderMarkers();
+
+    saveBtn.innerText = "Save";
+    saveBtn.disabled = false;
+
+    closeAdd();
 }
+
 
 /* ===== LOAD ===== */
-function loadMarkers(){
-  const saved = localStorage.getItem("ourWorldMemories");
-  if(saved){
-    markers = JSON.parse(saved);
-  }
-  renderMarkers();
+function loadMarkers() {
+
+    const saved = localStorage.getItem("ourWorldMemories");
+
+    if (saved) {
+        markers = JSON.parse(saved);
+    }
+
+    renderMarkers();
 }
+
 
 /* ===== RENDER ===== */
-function renderMarkers(){
+function renderMarkers() {
 
-  map.eachLayer(layer=>{
-    if(layer instanceof L.Marker) map.removeLayer(layer);
-  });
+    if (!map) return;
 
-  locationsContainer.innerHTML="";
-
-  markers.forEach((m,i)=>{
-
-    const icon = L.divIcon({
-      html:`<div style="font-size:18px;">${m.icon}</div>`,
-      className:'',
-      iconSize:[24,24]
+    map.eachLayer(function(layer) {
+        if (layer instanceof L.Marker) {
+            map.removeLayer(layer);
+        }
     });
 
-    const marker = L.marker([m.lat,m.lng],{icon}).addTo(map);
+    locationsContainer.innerHTML = "";
 
-    marker.on('click',()=>{
-      const content = `
-        <h3>${m.name}</h3>
-        ${m.image ? `<img src="${m.image}" class="popup-img">` : ''}
-        <p>${m.desc}</p>
-        <button onclick="editMemory(${i})">Edit</button>
-        <button onclick="deleteMemory(${i})">Delete</button>
-      `;
-      marker.bindPopup(content,{maxWidth:280}).openPopup();
+    markers.forEach(function(m, i) {
+
+        const customIcon = L.divIcon({
+            html: `<div style="font-size:18px;">${m.icon}</div>`,
+            className: '',
+            iconSize: [24, 24]
+        });
+
+        const marker = L.marker([m.lat, m.lng], { icon: customIcon }).addTo(map);
+
+        marker.on('click', function() {
+
+            const content = `
+                <h3>${m.name}</h3>
+                ${m.image ? `<img src="${m.image}" class="popup-img">` : ''}
+                <p>${m.desc}</p>
+                <button onclick="editMemory(${i})">Edit</button>
+                <button onclick="deleteMemory(${i})">Delete</button>
+            `;
+
+            marker.bindPopup(content, {
+                maxWidth: 280,
+                autoPan: true
+            }).openPopup();
+
+        });
+
+        const item = document.createElement("div");
+        item.className = "location-item";
+        item.innerText = m.name;
+        item.onclick = function() {
+            map.setView([m.lat, m.lng], 6);
+        };
+
+        locationsContainer.appendChild(item);
+
     });
 
-    const item=document.createElement("div");
-    item.className="location-item";
-    item.innerText=m.name;
-    item.onclick=()=>map.setView([m.lat,m.lng],6);
-    locationsContainer.appendChild(item);
-  });
 }
+
 
 /* ===== DELETE ===== */
-function deleteMemory(i){
-  markers.splice(i,1);
-  localStorage.setItem("ourWorldMemories",JSON.stringify(markers));
-  renderMarkers();
+function deleteMemory(index) {
+
+    markers.splice(index, 1);
+    localStorage.setItem("ourWorldMemories", JSON.stringify(markers));
+    renderMarkers();
+
 }
 
+
 /* ===== EDIT ===== */
-function editMemory(i){
-  const m = markers[i];
-  selectedLatLng = {lat:m.lat,lng:m.lng};
-  placeName.value=m.name;
-  description.value=m.desc;
-  iconSelect.value=m.icon;
-  deleteMemory(i);
-  addPanel.style.display="block";
+function editMemory(index) {
+
+    const m = markers[index];
+
+    selectedLatLng = { lat: m.lat, lng: m.lng };
+
+    placeName.value = m.name;
+    description.value = m.desc;
+    iconSelect.value = m.icon;
+
+    deleteMemory(index);
+
+    document.getElementById("addPanel").style.display = "block";
+
 }
+
 </script>
 
 </body>
 </html>
+
