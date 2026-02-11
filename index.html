@@ -1,399 +1,312 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
 <title>OUR WORLD ❤️</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
-html,body{
+html, body {
   margin:0;
+  padding:0;
   height:100%;
   font-family:Arial, sans-serif;
-  background:#0a0e13;
-  color:#f0ebe5;
+  overflow:hidden;
 }
 
-#map{height:100%}
-.leaflet-div-icon{background:none;border:none}
-
-/* ---------------- INTRO ---------------- */
-
-#intro{
+/* Romantic intro */
+#intro {
   position:fixed;
-  inset:0;
-  background:#0a0e13;
+  width:100%;
+  height:100%;
+  background:#200000;
   display:flex;
   flex-direction:column;
   justify-content:center;
   align-items:center;
+  color:white;
   text-align:center;
-  z-index:5000;
-  overflow:hidden;
+  z-index:3000;
 }
 
 #intro::before{
-  content:"❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤ ❤";
+  content:"❤️ ❤️ ❤️ ❤️ ❤️ ❤️ ❤️ ❤️ ❤️ ❤️";
   position:absolute;
-  font-size:4rem;
-  color:rgba(139,0,0,0.05);
-  animation:floatHearts 18s linear infinite;
+  font-size:80px;
+  opacity:0.05;
+  transform:rotate(-20deg);
 }
 
-@keyframes floatHearts{
-  0%{transform:translateY(-20px)}
-  50%{transform:translateY(40px)}
-  100%{transform:translateY(-20px)}
-}
-
-#intro h1{
-  color:#d4af37;
-  font-size:2.4rem;
+#intro h1 {
+  font-size:30px;
   z-index:2;
 }
 
-#intro p{color:#ccc;z-index:2}
-
-#intro button{
-  margin-top:30px;
-  padding:14px 26px;
-  background:#d4af37;
+#enterBtn {
+  margin-top:20px;
+  padding:12px 24px;
+  background:#8b0000;
+  color:white;
   border:none;
-  font-weight:bold;
   border-radius:8px;
+  font-size:16px;
   cursor:pointer;
-  z-index:2;
-  transition:0.3s;
 }
-#intro button:hover{transform:scale(1.05)}
 
-/* ---------------- MODALS ---------------- */
+#map {
+  width:100%;
+  height:100%;
+}
 
-.modal{
+/* Add panel */
+#addPanel {
   position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.9);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  z-index:4000;
-}
-.modal.active{display:flex}
-
-.modal-content{
-  background:#1a1a1a;
+  top:20px;
+  left:50%;
+  transform:translateX(-50%);
+  background:white;
   width:90%;
-  max-width:420px;
-  padding:20px;
+  max-width:400px;
+  padding:15px;
   border-radius:12px;
-  border:1px solid #d4af37;
-  max-height:85vh;
-  overflow:auto;
-  animation:fadeIn .25s ease;
-}
-
-@keyframes fadeIn{
-  from{opacity:0;transform:scale(.95)}
-  to{opacity:1;transform:scale(1)}
-}
-
-input,textarea{
-  width:100%;
-  padding:10px;
-  margin-bottom:12px;
-  background:#222;
-  border:1px solid #555;
-  color:#fff;
-  border-radius:6px;
-}
-
-button{
-  width:100%;
-  padding:12px;
-  border:none;
-  border-radius:6px;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-.save{background:#d4af37;color:#000}
-.cancel{background:#555;margin-top:8px}
-.delete{background:#8b0000;margin-top:8px}
-
-/* ---------------- POPUP ---------------- */
-
-.popup{
-  width:260px;
-}
-
-.popup img{
-  width:100%;
-  height:160px;
-  object-fit:cover;
-  border-radius:8px;
-  margin-bottom:6px;
-  cursor:pointer;
-}
-
-.popup p{
-  font-size:.9rem;
-  margin:4px 0;
-}
-
-.popup button{
-  margin-top:6px;
-}
-
-/* ---------------- VIEWER ---------------- */
-
-#viewer{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.95);
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+  z-index:2000;
   display:none;
-  align-items:center;
-  justify-content:center;
-  z-index:6000;
-}
-#viewer img{
-  max-width:90%;
-  max-height:90%;
-  border-radius:12px;
 }
 
-/* ---------------- LIST BUTTON ---------------- */
+#addPanel input, #addPanel textarea {
+  width:100%;
+  margin-bottom:10px;
+  padding:8px;
+}
 
-#listBtn{
-  position:absolute;
-  bottom:18px;
-  left:18px;
-  z-index:3000;
-  font-size:1.8rem;
-  background:#d4af37;
-  border:none;
-  padding:6px 10px;
-  border-radius:6px;
+#addPanel button {
+  padding:8px;
+  margin-right:5px;
+}
+
+/* Fixed popup */
+.fixed-popup {
+  max-width:300px !important;
+}
+
+.popup-img {
+  width:100%;
+  height:auto;
+  border-radius:10px;
+  object-fit:contain;
+}
+
+/* Always visible location list */
+#locationList {
+  position:fixed;
+  bottom:0;
+  left:0;
+  width:100%;
+  max-height:35%;
+  background:white;
+  overflow-y:auto;
+  border-top:2px solid #ccc;
+  z-index:1500;
+  padding:10px;
+}
+
+#locationList h3 {
+  margin:5px 0;
+}
+
+.location-item {
+  padding:6px;
+  border-bottom:1px solid #eee;
   cursor:pointer;
 }
 
-/* ---------------- SAVE HEART ANIMATION ---------------- */
-
-@keyframes pulseHeart{
-  0%{transform:scale(1)}
-  50%{transform:scale(1.4)}
-  100%{transform:scale(1)}
+.location-item:hover {
+  background:#f3f3f3;
 }
 
-.heartPulse{
-  animation:pulseHeart .6s ease;
+/* Small heart marker */
+.heart-marker {
+  font-size:18px;
 }
 
 </style>
 </head>
-
 <body>
 
 <div id="intro">
-  <h1>OUR WORLD ❤️</h1>
-  <p>Every place we loved. Every memory we made.</p>
-  <button onclick="enterWorld()">Enter Our World ❤️</button>
+  <h1>Welcome to Our World ❤️</h1>
+  <button id="enterBtn">Enter Our World</button>
 </div>
 
 <div id="map"></div>
-<button id="listBtn">✈️</button>
 
-<div class="modal" id="memoryModal">
-  <div class="modal-content">
-    <input id="placeName" placeholder="Place name">
-    <textarea id="placeDesc" placeholder="Why this place matters"></textarea>
-    <input type="file" id="placePhoto" accept="image/*">
-    <button class="save" id="saveBtn">Save ❤️</button>
-    <button class="cancel" onclick="closeModal()">Cancel</button>
-    <button class="delete" id="deleteBtn">Delete</button>
-  </div>
+<div id="addPanel">
+  <h3>Add a Memory</h3>
+  <input type="text" id="placeName" placeholder="Place name"/>
+  <textarea id="description" placeholder="Description"></textarea>
+  <input type="file" id="photoInput" accept="image/*"/>
+  <select id="iconSelect">
+    <option value="❤️">❤️</option>
+    <option value="🍔">🍔</option>
+    <option value="✈️">✈️</option>
+  </select>
+  <button id="saveBtn">Save</button>
+  <button onclick="closeAdd()">Cancel</button>
 </div>
 
-<div class="modal" id="listModal">
-  <div class="modal-content">
-    <h3 style="color:#d4af37;">Our Places</h3>
-    <ul id="placesList"></ul>
-    <button class="cancel" onclick="closeList()">Close</button>
-  </div>
-</div>
-
-<div id="viewer" onclick="this.style.display='none'">
-  <img id="viewerImg">
+<div id="locationList">
+  <h3>Our Places ✈️</h3>
+  <div id="locationsContainer"></div>
 </div>
 
 <script>
 
-/* -------- INTRO -------- */
-function enterWorld(){
+let map;
+let markers = [];
+let selectedLatLng = null;
+
+document.getElementById("enterBtn").onclick = function(){
   document.getElementById("intro").style.display="none";
-  setTimeout(()=>map.invalidateSize(),300);
+  initMap();
+};
+
+function initMap(){
+  map = L.map('map').setView([51.505, -0.09], 3);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution:'© OpenStreetMap'
+  }).addTo(map);
+
+  loadMarkers();
+
+  map.on('click', function(e){
+    selectedLatLng = e.latlng;
+    document.getElementById("addPanel").style.display="block";
+  });
 }
 
-/* -------- MAP -------- */
-const map=L.map("map").setView([48,8],4);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+function closeAdd(){
+  document.getElementById("addPanel").style.display="none";
+}
 
-let pins=JSON.parse(localStorage.getItem("pins")||"[]");
-let editIndex=null;
-let tempLatLng=null;
-let imageData=null;
+document.getElementById("saveBtn").onclick = function(){
+  const name = document.getElementById("placeName").value;
+  const desc = document.getElementById("description").value;
+  const file = document.getElementById("photoInput").files[0];
+  const icon = document.getElementById("iconSelect").value;
 
-/* -------- IMAGE FAST COMPRESSION -------- */
-document.getElementById("placePhoto").addEventListener("change",function(e){
-  const file=e.target.files[0];
-  if(!file) return;
+  if(!name || !selectedLatLng) return;
 
-  const reader=new FileReader();
-  reader.onload=function(ev){
-    const img=new Image();
-    img.onload=function(){
-      const canvas=document.createElement("canvas");
-      const max=800;
-      let w=img.width,h=img.height;
-      if(w>max||h>max){
-        if(w>h){h=h*max/w;w=max;}
-        else{w=w*max/h;h=max;}
-      }
-      canvas.width=w;
-      canvas.height=h;
-      canvas.getContext("2d").drawImage(img,0,0,w,h);
-      imageData=canvas.toDataURL("image/jpeg",0.7);
+  this.innerText="Saving...";
+  this.disabled=true;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+
+    const memory = {
+      name,
+      desc,
+      image:e.target.result,
+      lat:selectedLatLng.lat,
+      lng:selectedLatLng.lng,
+      icon
     };
-    img.src=ev.target.result;
+
+    saveMarker(memory);
+
+    document.getElementById("saveBtn").innerText="Save";
+    document.getElementById("saveBtn").disabled=false;
+    document.getElementById("addPanel").style.display="none";
   };
-  reader.readAsDataURL(file);
-});
 
-/* -------- MAP CLICK -------- */
-map.on("click",e=>{
-  editIndex=null;
-  tempLatLng=e.latlng;
-  document.getElementById("deleteBtn").style.display="none";
-  openModal();
-});
-
-/* -------- SAVE -------- */
-document.getElementById("saveBtn").onclick=function(){
-  const btn=this;
-  btn.textContent="Saving...";
-  btn.disabled=true;
-
-  setTimeout(()=>{
-    const data={
-      lat:editIndex!==null?pins[editIndex].lat:tempLatLng.lat,
-      lng:editIndex!==null?pins[editIndex].lng:tempLatLng.lng,
-      name:document.getElementById("placeName").value,
-      desc:document.getElementById("placeDesc").value,
-      img:imageData
-    };
-
-    if(editIndex!==null) pins[editIndex]=data;
-    else pins.push(data);
-
-    localStorage.setItem("pins",JSON.stringify(pins));
-    renderPins();
-
-    btn.classList.add("heartPulse");
-    setTimeout(()=>btn.classList.remove("heartPulse"),600);
-
-    closeModal();
-    btn.textContent="Save ❤️";
-    btn.disabled=false;
-  },150);
+  if(file){
+    reader.readAsDataURL(file);
+  } else {
+    reader.onload({target:{result:null}});
+  }
 };
 
-/* -------- DELETE -------- */
-document.getElementById("deleteBtn").onclick=function(){
-  pins.splice(editIndex,1);
-  localStorage.setItem("pins",JSON.stringify(pins));
-  renderPins();
-  closeModal();
-};
+function saveMarker(memory){
+  markers.push(memory);
+  localStorage.setItem("ourWorldMemories", JSON.stringify(markers));
+  renderMarkers();
+}
 
-/* -------- RENDER -------- */
-let markers=[];
-function renderPins(){
-  markers.forEach(m=>map.removeLayer(m));
-  markers=[];
-  pins.forEach((p,i)=>{
-    const marker=L.marker([p.lat,p.lng],{
-      icon:L.divIcon({
-        html:`<div style="font-size:18px">❤️</div>`,
-        iconSize:[18,18],
-        iconAnchor:[9,9]
-      })
-    }).addTo(map);
+function loadMarkers(){
+  const saved = localStorage.getItem("ourWorldMemories");
+  if(saved){
+    markers = JSON.parse(saved);
+  }
+  renderMarkers();
+}
 
-    marker.on("click",()=>{
-      const popupContent=document.createElement("div");
-      popupContent.className="popup";
-      popupContent.innerHTML=`
-        ${p.img?`<img src="${p.img}" onclick="viewImage('${p.img}')">`:""}
-        <strong>${p.name||"Our Memory"}</strong>
-        <p>${p.desc||""}</p>
-        <button onclick="editPin(${i})">Edit</button>
-      `;
-      marker.bindPopup(popupContent,{maxWidth:280}).openPopup();
+function renderMarkers(){
+  if(!map) return;
+
+  map.eachLayer(function(layer){
+    if(layer instanceof L.Marker) map.removeLayer(layer);
+  });
+
+  document.getElementById("locationsContainer").innerHTML="";
+
+  markers.forEach((m,i)=>{
+
+    const icon = L.divIcon({
+      html: `<div class="heart-marker">${m.icon}</div>`,
+      className:'',
+      iconSize:[25,25]
     });
 
-    markers.push(marker);
-  });
+    const marker = L.marker([m.lat,m.lng],{icon}).addTo(map);
 
-  renderList();
-}
-renderPins();
+    marker.on('click', function(){
+      const popupContent = `
+        <div class="fixed-popup">
+          <h3>${m.name}</h3>
+          ${m.image ? `<img src="${m.image}" class="popup-img"/>` : ''}
+          <p>${m.desc}</p>
+          <button onclick="editMemory(${i})">Edit</button>
+          <button onclick="deleteMemory(${i})">Delete</button>
+        </div>
+      `;
+      marker.bindPopup(popupContent).openPopup();
+    });
 
-/* -------- EDIT -------- */
-function editPin(i){
-  editIndex=i;
-  const p=pins[i];
-  document.getElementById("placeName").value=p.name;
-  document.getElementById("placeDesc").value=p.desc;
-  imageData=p.img;
-  document.getElementById("deleteBtn").style.display="block";
-  openModal();
-}
+    const item = document.createElement("div");
+    item.className="location-item";
+    item.innerText=m.name;
+    item.onclick=function(){
+      map.setView([m.lat,m.lng],8);
+    };
 
-/* -------- VIEW IMAGE -------- */
-function viewImage(src){
-  document.getElementById("viewerImg").src=src;
-  document.getElementById("viewer").style.display="flex";
-}
+    document.getElementById("locationsContainer").appendChild(item);
 
-/* -------- LIST -------- */
-document.getElementById("listBtn").onclick=function(){
-  document.getElementById("listModal").classList.add("active");
-};
-
-function renderList(){
-  const list=document.getElementById("placesList");
-  list.innerHTML="";
-  pins.forEach(p=>{
-    const li=document.createElement("li");
-    li.textContent=p.name;
-    list.appendChild(li);
   });
 }
 
-function closeList(){
-  document.getElementById("listModal").classList.remove("active");
+function deleteMemory(index){
+  markers.splice(index,1);
+  localStorage.setItem("ourWorldMemories", JSON.stringify(markers));
+  renderMarkers();
 }
 
-/* -------- MODAL -------- */
-function openModal(){
-  document.getElementById("memoryModal").classList.add("active");
-}
-function closeModal(){
-  document.getElementById("memoryModal").classList.remove("active");
+function editMemory(index){
+  const m = markers[index];
+  selectedLatLng = {lat:m.lat,lng:m.lng};
+  document.getElementById("placeName").value=m.name;
+  document.getElementById("description").value=m.desc;
+  document.getElementById("iconSelect").value=m.icon;
+  document.getElementById("addPanel").style.display="block";
+  deleteMemory(index);
 }
 
 </script>
+
 </body>
 </html>
