@@ -1,246 +1,269 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Our Memory Map ❤️</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Our World ❤️</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-html,body{
-margin:0;
-padding:0;
-height:100%;
-font-family:Arial, sans-serif;
-background:#111;
-overflow:hidden;
+html, body {
+  margin:0;
+  padding:0;
+  height:100%;
+  font-family: Arial, sans-serif;
+  overflow:hidden;
 }
 
-/* INTRO SCREEN */
-#intro{
-position:fixed;
-top:0;left:0;
-width:100%;height:100%;
-background:#000;
-display:flex;
-flex-direction:column;
-justify-content:center;
-align-items:center;
-color:white;
-z-index:9999;
-transition:opacity 0.5s ease;
+/* Romantic intro */
+#intro {
+  position:fixed;
+  width:100%;
+  height:100%;
+  background:#3b0000;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  color:white;
+  z-index:9999;
+  text-align:center;
 }
 
-#intro button{
-padding:15px 30px;
-font-size:18px;
-border:none;
-border-radius:30px;
-background:#ff4d6d;
-color:white;
-cursor:pointer;
+#intro h1 {
+  font-size:2em;
+  margin-bottom:20px;
 }
 
-/* MAP */
-#map{
-position:absolute;
-top:0;
-left:300px;
-right:0;
-bottom:0;
+#enterBtn {
+  padding:12px 25px;
+  font-size:18px;
+  border:none;
+  border-radius:30px;
+  background:#ff4d6d;
+  color:white;
+  cursor:pointer;
 }
 
-/* SIDE PANEL */
-#panel{
-position:absolute;
-top:0;
-left:0;
-width:300px;
-height:100%;
-background:#1a1a1a;
-color:white;
-overflow-y:auto;
-padding:20px;
-box-sizing:border-box;
-border-right:1px solid #333;
+/* Map */
+#map {
+  height:100%;
+  width:100%;
 }
 
-#panel h2{
-margin-top:0;
-display:flex;
-justify-content:space-between;
-align-items:center;
+/* Side panel */
+#sidePanel {
+  position:fixed;
+  top:10px;
+  right:10px;
+  width:220px;
+  max-height:80%;
+  overflow:auto;
+  background:white;
+  border-radius:15px;
+  padding:10px;
+  z-index:800;
+  box-shadow:0 4px 10px rgba(0,0,0,0.2);
 }
 
-#memoryCount{
-background:#ff4d6d;
-padding:4px 10px;
-border-radius:20px;
-font-size:14px;
+.memoryItem {
+  padding:6px;
+  border-bottom:1px solid #eee;
+  cursor:pointer;
 }
 
-.memory-item{
-padding:10px;
-margin-bottom:10px;
-background:#2a2a2a;
-border-radius:10px;
-cursor:pointer;
+/* Popup styling */
+.leaflet-popup-content-wrapper {
+  border-radius:15px;
 }
 
-.memory-item:hover{
-background:#333;
+.popup-img {
+  width:100%;
+  height:200px;
+  object-fit:contain;
+  border-radius:10px;
 }
 
-/* POPUP IMAGE */
-.popup-img{
-width:220px;
-height:auto;
-max-height:250px;
-object-fit:contain;
-border-radius:10px;
-display:block;
-margin:auto;
+.iconChoice {
+  font-size:22px;
+  cursor:pointer;
+  margin:5px;
 }
 
-/* HEART ANIMATION */
-.heart{
-position:fixed;
-font-size:40px;
-color:#ff4d6d;
-animation:floatUp 1s ease forwards;
-pointer-events:none;
+.saveBtn {
+  margin-top:8px;
+  padding:8px;
+  background:#ff4d6d;
+  border:none;
+  color:white;
+  border-radius:8px;
+  cursor:pointer;
+  width:100%;
 }
 
-@keyframes floatUp{
-0%{opacity:1; transform:translateY(0);}
-100%{opacity:0; transform:translateY(-100px);}
+.deleteBtn {
+  margin-top:5px;
+  padding:6px;
+  background:#999;
+  border:none;
+  color:white;
+  border-radius:8px;
+  cursor:pointer;
+  width:100%;
 }
 
 </style>
 </head>
-
 <body>
 
-<!-- INTRO -->
 <div id="intro">
-<h1>Welcome to Our World ❤️</h1>
-<button onclick="enterWorld()">Enter Our World</button>
+  <h1>Welcome to Our World ❤️</h1>
+  <button id="enterBtn">Enter Our World</button>
 </div>
 
-<!-- SIDE PANEL -->
-<div id="panel">
-<h2>Memories <span id="memoryCount">0</span></h2>
-<div id="memoryList"></div>
-</div>
-
-<!-- MAP -->
 <div id="map"></div>
 
+<div id="sidePanel">
+  <h3>Our Memories</h3>
+  <div id="memoryList"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
-
 let map;
-let memories = [];
+let memories = JSON.parse(localStorage.getItem("memories") || "[]");
+let markers = [];
 
-/* ENTER BUTTON FIXED */
-function enterWorld(){
-const intro = document.getElementById("intro");
-intro.style.opacity="0";
-setTimeout(()=> intro.style.display="none",500);
-initializeMap();
-}
-
-/* INITIALIZE MAP */
-function initializeMap(){
-map = L.map('map',{zoomControl:true}).setView([20,0],2);
-
-/* DARK MAP THEME */
-L.tileLayer(
-'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-{
-attribution:'©OpenStreetMap ©CartoDB'
-}).addTo(map);
-
-/* LOAD CLOUD STORAGE (Firebase ready placeholder) */
-loadMemories();
-
-/* CLICK TO ADD MEMORY */
-map.on('click',function(e){
-const title = prompt("Memory title:");
-if(!title) return;
-
-const imgURL = prompt("Paste image URL:");
-if(!imgURL) return;
-
-const memory = {
-lat:e.latlng.lat,
-lng:e.latlng.lng,
-title:title,
-img:imgURL,
-date:new Date().toLocaleDateString()
-};
-
-memories.push(memory);
-saveMemories();
-addMarker(memory);
-updatePanel();
-showHeart();
+document.getElementById("enterBtn").addEventListener("click", function(){
+  document.getElementById("intro").style.display = "none";
+  if(!mapInitialized){
+    initMap();
+    mapInitialized = true;
+  }
 });
+
+let mapInitialized = false;
+
+function initMap(){
+  map = L.map('map').setView([20,0],2);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:18
+  }).addTo(map);
+
+  map.on("click", function(e){
+    openMemoryPopup(e.latlng);
+  });
+
+  loadMemories();
 }
 
-/* ADD MARKER */
-function addMarker(memory){
-const marker = L.marker([memory.lat,memory.lng]).addTo(map);
+function openMemoryPopup(latlng, existing=null){
 
-marker.bindPopup(`
-<h3>${memory.title}</h3>
-<p>${memory.date}</p>
-<img src="${memory.img}" class="popup-img">
-`);
+  let popupContent = `
+    <input id="placeName" placeholder="Place name" style="width:100%;margin-bottom:5px;" value="${existing?existing.name:""}">
+    <textarea id="description" placeholder="Description" style="width:100%;height:60px;">${existing?existing.desc:""}</textarea>
+    <input type="file" id="photoInput" accept="image/*">
+    <div>
+      <span class="iconChoice">❤️</span>
+      <span class="iconChoice">🍔</span>
+      <span class="iconChoice">✈️</span>
+    </div>
+    <button class="saveBtn">Save</button>
+    ${existing?'<button class="deleteBtn">Delete</button>':''}
+  `;
+
+  let popup = L.popup({maxWidth:300})
+    .setLatLng(latlng)
+    .setContent(popupContent)
+    .openOn(map);
+
+  let selectedIcon = "❤️";
+
+  setTimeout(()=>{
+    document.querySelectorAll(".iconChoice").forEach(icon=>{
+      icon.onclick=()=> selectedIcon = icon.textContent;
+    });
+
+    document.querySelector(".saveBtn").onclick = function(){
+      let name = document.getElementById("placeName").value;
+      let desc = document.getElementById("description").value;
+      let file = document.getElementById("photoInput").files[0];
+
+      if(file){
+        let reader = new FileReader();
+        reader.onload = function(evt){
+          saveMemory(latlng,name,desc,evt.target.result,selectedIcon);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        saveMemory(latlng,name,desc,null,selectedIcon);
+      }
+    };
+
+    if(existing){
+      document.querySelector(".deleteBtn").onclick=function(){
+        memories = memories.filter(m=>m.id!==existing.id);
+        localStorage.setItem("memories",JSON.stringify(memories));
+        map.closePopup();
+        loadMemories();
+      };
+    }
+
+  },100);
 }
 
-/* UPDATE SIDE PANEL */
-function updatePanel(){
-const list = document.getElementById("memoryList");
-list.innerHTML="";
-memories.forEach((m,index)=>{
-const div=document.createElement("div");
-div.className="memory-item";
-div.innerHTML=`<strong>${m.title}</strong><br><small>${m.date}</small>`;
-div.onclick=function(){
-map.setView([m.lat,m.lng],6);
-};
-list.appendChild(div);
-});
-document.getElementById("memoryCount").innerText=memories.length;
-}
-
-/* HEART ANIMATION */
-function showHeart(){
-const heart=document.createElement("div");
-heart.className="heart";
-heart.innerHTML="❤️";
-heart.style.left=(window.innerWidth/2)+"px";
-heart.style.top=(window.innerHeight/2)+"px";
-document.body.appendChild(heart);
-setTimeout(()=>heart.remove(),1000);
-}
-
-/* STORAGE (TEMP LOCAL) */
-function saveMemories(){
-localStorage.setItem("ourMemories",JSON.stringify(memories));
+function saveMemory(latlng,name,desc,image,icon){
+  let memory = {
+    id: Date.now(),
+    lat:latlng.lat,
+    lng:latlng.lng,
+    name:name,
+    desc:desc,
+    image:image,
+    icon:icon,
+    date:new Date().toLocaleDateString()
+  };
+  memories.push(memory);
+  localStorage.setItem("memories",JSON.stringify(memories));
+  map.closePopup();
+  loadMemories();
 }
 
 function loadMemories(){
-const stored=localStorage.getItem("ourMemories");
-if(stored){
-memories=JSON.parse(stored);
-memories.forEach(addMarker);
-updatePanel();
-}
-}
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+  document.getElementById("memoryList").innerHTML="";
 
+  memories.forEach(mem=>{
+    let marker = L.marker([mem.lat,mem.lng],{
+      icon:L.divIcon({
+        className:"",
+        html:`<div style="font-size:18px;">${mem.icon}</div>`
+      })
+    }).addTo(map);
+
+    marker.on("click",()=>{
+      let content=`
+        <h3>${mem.name}</h3>
+        ${mem.image?`<img src="${mem.image}" class="popup-img">`:""}
+        <p>${mem.desc}</p>
+        <small>${mem.date}</small>
+      `;
+      marker.bindPopup(content,{maxWidth:300}).openPopup();
+    });
+
+    markers.push(marker);
+
+    let item = document.createElement("div");
+    item.className="memoryItem";
+    item.innerText=mem.icon+" "+mem.name;
+    item.onclick=()=>map.setView([mem.lat,mem.lng],6);
+    document.getElementById("memoryList").appendChild(item);
+  });
+}
 </script>
 
 </body>
