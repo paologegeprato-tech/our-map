@@ -167,8 +167,8 @@ function showHeartTrail(latlng,icon){
   for(let i=0;i<4;i++){
     const h=document.createElement("div");
     h.className="heart";h.textContent=em[Math.floor(Math.random()*em.length)];
-    h.style.left=(p.x+(Math.random()*30‑15))+"px";
-    h.style.top=(p.y+(Math.random()*30‑15))+"px";
+    h.style.left = (p.x + (Math.random() * 30 - 15)) + "px";
+    h.style.top  = (p.y + (Math.random() * 30 - 15)) + "px";
     h.style.animationDelay=(i*0.1)+"s";
     mapDiv.appendChild(h);
     setTimeout(()=>h.remove(),900);
@@ -177,3 +177,4 @@ function showHeartTrail(latlng,icon){
 </script>
 </body>
 </html>
+
