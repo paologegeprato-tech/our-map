@@ -66,115 +66,138 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 /* ---------- App Logic ---------- */
-let map, markers=[];
-document.getElementById("enterBtn").onclick=()=>{document.getElementById("intro").style.display="none";initMap();};
+let map;
+let markers = [];
 
-function initMap(){
-  map=L.map('map').setView([20,0],2);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
-  map.on("click",e=>openMemoryPopup(e.latlng));
+document.getElementById("enterBtn").onclick = () => {
+  document.getElementById("intro").style.display = "none";
+  initMap();
+};
+
+function initMap() {
+  map = L.map("map").setView([20, 0], 2);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+  map.on("click", e => openMemoryPopup(e.latlng));
   loadMemories();
 }
 
-function showSavingOverlay(show,text){
-  const o=document.getElementById("savingOverlay");
-  o.style.display=show?"flex":"none";
-  if(text)o.innerHTML=`<span class="heartbeat">${text}</span>`;
+function showSavingOverlay(show, text) {
+  const o = document.getElementById("savingOverlay");
+  o.style.display = show ? "flex" : "none";
+  if (text) o.innerHTML = `<span class="heartbeat">${text}</span>`;
 }
 
-function openMemoryPopup(latlng){
-  const html=`
+function openMemoryPopup(latlng) {
+  const html = `
     <input id="placeName" placeholder="Place name" style="width:100%;margin-bottom:5px;">
     <textarea id="description" placeholder="Description" style="width:100%;height:60px;"></textarea>
     <input type="file" id="photoInput" accept="image/*">
     <div><span class="iconChoice">❤️</span><span class="iconChoice">🍔</span><span class="iconChoice">✈️</span></div>
     <button class="saveBtn">Save</button>`;
-  L.popup({maxWidth:260,autoPan:true}).setLatLng(latlng).setContent(html).openOn(map);
-  map.once("popupopen",()=>initPopupEvents(latlng));
+  L.popup({ maxWidth: 260, autoPan: true }).setLatLng(latlng).setContent(html).openOn(map);
+  map.once("popupopen", () => initPopupEvents(latlng));
 }
 
-function initPopupEvents(latlng){
-  let selectedIcon="❤️";
-  document.querySelectorAll(".iconChoice").forEach(ic=>{
-    ic.onclick=()=>{document.querySelectorAll(".iconChoice").forEach(i=>i.classList.remove("selected"));
-      ic.classList.add("selected");selectedIcon=ic.textContent;};});
-  document.querySelector(".saveBtn").onclick=async()=>{
-    const name=document.getElementById("placeName").value.trim();
-    const desc=document.getElementById("description").value.trim();
-    const file=document.getElementById("photoInput").files[0];
-    if(!name&&!desc&&!file)return alert("Please add something to save.");
-    await saveMemory(latlng,name,desc,file||null,selectedIcon);
+function initPopupEvents(latlng) {
+  let selectedIcon = "❤️";
+  document.querySelectorAll(".iconChoice").forEach(ic => {
+    ic.onclick = () => {
+      document.querySelectorAll(".iconChoice").forEach(i => i.classList.remove("selected"));
+      ic.classList.add("selected");
+      selectedIcon = ic.textContent;
+    };
+  });
+
+  document.querySelector(".saveBtn").onclick = async () => {
+    const name = document.getElementById("placeName").value.trim();
+    const desc = document.getElementById("description").value.trim();
+    const file = document.getElementById("photoInput").files[0];
+    if (!name && !desc && !file) return alert("Please add something to save.");
+    await saveMemory(latlng, name, desc, file || null, selectedIcon);
   };
 }
 
 /* ---------- Save / Load from Firebase ---------- */
-async function saveMemory(latlng,name,desc,file,icon){
-  showSavingOverlay(true,"☁️ Uploading…");
-  try{
-    let photoURL=null;
-    if(file){
-      const id=crypto.randomUUID();
-      const fRef=storageRef(storage,`memories/${id}.jpg`);
-      await uploadBytes(fRef,file);
-      photoURL=await getDownloadURL(fRef);
+async function saveMemory(latlng, name, desc, file, icon) {
+  showSavingOverlay(true, "☁️ Uploading…");
+  try {
+    let photoURL = null;
+    if (file) {
+      const id = crypto.randomUUID();
+      const fRef = storageRef(storage, `memories/${id}.jpg`);
+      await uploadBytes(fRef, file);
+      photoURL = await getDownloadURL(fRef);
     }
-    const data={lat:latlng.lat,lng:latlng.lng,name,desc,icon,image:photoURL,date:new Date().toLocaleDateString()};
-    await addDoc(collection(db,"memories"),data);
+    const data = {
+      lat: latlng.lat,
+      lng: latlng.lng,
+      name,
+      desc,
+      icon,
+      image: photoURL,
+      date: new Date().toLocaleDateString()
+    };
+    await addDoc(collection(db, "memories"), data);
     showSavingOverlay(false);
     loadMemories();
     map.closePopup();
-  }catch(err){
+  } catch (err) {
     console.error(err);
     alert("⚠️ Error saving memory.");
     showSavingOverlay(false);
   }
 }
 
-async function loadMemories(){
-  if(!db)return;
-  markers.forEach(m=>map.removeLayer(m));markers=[];
-  document.getElementById("memoryList").innerHTML="";
-  const snap=await getDocs(collection(db,"memories"));
-  snap.forEach(doc=>{
-    const mem=doc.data();
-    const marker=L.marker([mem.lat,mem.lng],{
-      icon:L.divIcon({className:"",html:`<div style="font-size:16px;">${mem.icon}</div>`,iconSize:[20,20]})
+async function loadMemories() {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  document.getElementById("memoryList").innerHTML = "";
+  const snap = await getDocs(collection(db, "memories"));
+  snap.forEach(doc => {
+    const mem = doc.data();
+    const marker = L.marker([mem.lat, mem.lng], {
+      icon: L.divIcon({
+        className: "",
+        html: `<div style="font-size:16px;">${mem.icon}</div>`,
+        iconSize: [20, 20]
+      })
     }).addTo(map);
 
-    marker.on("click",()=>{
-      const content=`
-        <h4>${mem.name||"Untitled Place"}</h4>
-        ${mem.image?`<img src="${mem.image}" class="popup-img">`:""}
-        <p>${mem.desc||""}</p>
+    marker.on("click", () => {
+      const content = `
+        <h4>${mem.name || "Untitled Place"}</h4>
+        ${mem.image ? `<img src="${mem.image}" class="popup-img">` : ""}
+        <p>${mem.desc || ""}</p>
         <small>${mem.date}</small>`;
-      marker.bindPopup(content,{maxWidth:260}).openPopup();
+      marker.bindPopup(content, { maxWidth: 260 }).openPopup();
     });
 
     markers.push(marker);
-    const item=document.createElement("div");
-    item.className="memoryItem";
-    item.innerText=`${mem.icon} ${mem.name||"Untitled Place"}`;
-    item.onclick=()=>map.setView([mem.lat,mem.lng],6);
+    const item = document.createElement("div");
+    item.className = "memoryItem";
+    item.innerText = `${mem.icon} ${mem.name || "Untitled Place"}`;
+    item.onclick = () => map.setView([mem.lat, mem.lng], 6);
     document.getElementById("memoryList").appendChild(item);
   });
 }
 
 /* ---------- Heart Animation ---------- */
-function showHeartTrail(latlng,icon){
-  const mapDiv=document.getElementById("map");
-  const p=map.latLngToContainerPoint(latlng);
-  const em=icon==="❤️"?["❤️","💕","💞","💖"]:["💫","✨","🌟"];
-  for(let i=0;i<4;i++){
-    const h=document.createElement("div");
-    h.className="heart";h.textContent=em[Math.floor(Math.random()*em.length)];
+function showHeartTrail(latlng, icon) {
+  const mapDiv = document.getElementById("map");
+  const p = map.latLngToContainerPoint(latlng);
+  const em = icon === "❤️" ? ["❤️", "💕", "💞", "💖"] : ["💫", "✨", "🌟"];
+
+  for (let i = 0; i < 4; i++) {
+    const h = document.createElement("div");
+    h.className = "heart";
+    h.textContent = em[Math.floor(Math.random() * em.length)];
     h.style.left = (p.x + (Math.random() * 30 - 15)) + "px";
     h.style.top  = (p.y + (Math.random() * 30 - 15)) + "px";
-    h.style.animationDelay=(i*0.1)+"s";
+    h.style.animationDelay = (i * 0.1) + "s";
     mapDiv.appendChild(h);
-    setTimeout(()=>h.remove(),900);
+    setTimeout(() => h.remove(), 900);
   }
 }
 </script>
 </body>
 </html>
-
