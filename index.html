@@ -6,6 +6,7 @@
 <title>Our World ❤️</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
 <style>
 html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:hidden;}
 #intro{position:fixed;width:100%;height:100%;background:#3b0000;display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;z-index:9999;text-align:center;}
@@ -18,8 +19,10 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 .leaflet-popup-content-wrapper{border-radius:15px;width:260px!important;}
 .popup-img{width:100%;max-height:150px;object-fit:contain;border-radius:10px;}
 .saveBtn,.deleteBtn{margin-top:8px;padding:8px;border:none;color:white;border-radius:8px;cursor:pointer;width:100%;}
-.saveBtn{background:#ff4d6d;} .saveBtn:hover{background:#ff6382;}
-.deleteBtn{background:#999;} .deleteBtn:hover{background:#aaa;}
+.saveBtn{background:#ff4d6d;}
+.saveBtn:hover{background:#ff6382;}
+.deleteBtn{background:#999;}
+.deleteBtn:hover{background:#aaa;}
 .iconChoice{font-size:20px;cursor:pointer;margin:5px;}
 .iconChoice.selected{text-shadow:0 0 5px #ff4d6d;}
 #savingOverlay{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,0.5);color:white;font-size:20px;z-index:2000;display:none;}
@@ -46,7 +49,18 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-/* -------------------- IndexedDB (local-only) -------------------- */
+/* ===================== FASTEST LOCAL VERSION (iPhone) ===================== */
+/* Saves EVERYTHING on this device (IndexedDB). Photos are aggressively resized
+   to keep processing fast. No Firebase. No uploads. */
+
+/* ---------- Overlay ---------- */
+function showSavingOverlay(show, text) {
+  const o = document.getElementById("savingOverlay");
+  o.style.display = show ? "flex" : "none";
+  if (show) o.innerHTML = `<span class="heartbeat">${text || "Working..."}</span>`;
+}
+
+/* ---------- IndexedDB ---------- */
 const DB_NAME = "ourworld_local";
 const DB_VERSION = 1;
 const STORE = "memories";
@@ -56,9 +70,7 @@ function openDB() {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "id" });
-      }
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -95,15 +107,47 @@ async function deleteLocalMemory(id) {
   });
 }
 
-/* -------------------- Aggressive iPhone compression -------------------- */
-async function compressImageToUnder7s(file) {
-  // Very aggressive defaults for iPhone photos
-  const MAX_WIDTH = 640;  // try 480 if still too slow
-  const QUALITY = 0.45;   // try 0.35 if still too slow
+/* ---------- FAST photo compression (iPhone-safe) ---------- */
+/* This is tuned for speed. It resizes hard and lowers quality. */
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label || "Timed out")), ms))
+  ]);
+}
+
+function dataURLToBlob(dataURL) {
+  const parts = dataURL.split(",");
+  const mime = parts[0].match(/:(.*?);/)[1];
+  const bstr = atob(parts[1]);
+  let n = bstr.length;
+  const u8 = new Uint8Array(n);
+  while (n--) u8[n] = bstr.charCodeAt(n);
+  return new Blob([u8], { type: mime });
+}
+
+async function canvasToJpegBlob(canvas, quality) {
+  const blob = await new Promise(resolve => {
+    if (!canvas.toBlob) return resolve(null);
+    canvas.toBlob(b => resolve(b), "image/jpeg", quality);
+  });
+  if (blob) return blob;
+
+  // iOS fallback
+  const dataURL = canvas.toDataURL("image/jpeg", quality);
+  return dataURLToBlob(dataURL);
+}
+
+async function compressForSpeed(file) {
+  // FASTEST settings that still look ok on a popup
+  const MAX_WIDTH = 420;   // very small for speed
+  const QUALITY = 0.33;    // strong compression
 
   const img = new Image();
   img.src = URL.createObjectURL(file);
-  await img.decode();
+
+  // Protect against iOS hangs on huge photos
+  await withTimeout(img.decode(), 6000, "Photo decode took too long");
 
   const scale = Math.min(1, MAX_WIDTH / img.width);
   const w = Math.max(1, Math.round(img.width * scale));
@@ -113,19 +157,28 @@ async function compressImageToUnder7s(file) {
   canvas.width = w;
   canvas.height = h;
 
-  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+  const ctx = canvas.getContext("2d", { alpha: false });
   ctx.drawImage(img, 0, 0, w, h);
 
   URL.revokeObjectURL(img.src);
 
-  const blob = await new Promise(resolve => {
-    canvas.toBlob(resolve, "image/jpeg", QUALITY);
-  });
+  const blob = await withTimeout(canvasToJpegBlob(canvas, QUALITY), 6000, "Photo compression took too long");
 
   return new File([blob], "photo.jpg", { type: "image/jpeg" });
 }
 
-/* -------------------- App -------------------- */
+/* ---------- Helpers ---------- */
+function escapeHTML(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[s]));
+}
+function cssEscape(value) {
+  if (window.CSS && CSS.escape) return CSS.escape(value);
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+
+/* ---------- App ---------- */
 let map;
 let markers = [];
 
@@ -139,12 +192,6 @@ function initMap() {
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
   map.on("click", e => openMemoryPopup(e.latlng));
   loadMemories();
-}
-
-function showSavingOverlay(show, text) {
-  const o = document.getElementById("savingOverlay");
-  o.style.display = show ? "flex" : "none";
-  if (text) o.innerHTML = `<span class="heartbeat">${text}</span>`;
 }
 
 function openMemoryPopup(latlng) {
@@ -188,10 +235,7 @@ function initPopupEvents(latlng) {
   };
 }
 
-/* -------------------- Save / Load locally -------------------- */
 async function saveMemory(latlng, name, desc, file, icon) {
-  showSavingOverlay(true, "Saving...");
-
   try {
     const id = (crypto && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -200,11 +244,13 @@ async function saveMemory(latlng, name, desc, file, icon) {
     let imageBlob = null;
 
     if (file) {
-      console.log("Original:", (file.size / 1024 / 1024).toFixed(2), "MB");
-      const compressed = await compressImageToUnder7s(file);
-      console.log("Compressed:", (compressed.size / 1024 / 1024).toFixed(2), "MB");
+      showSavingOverlay(true, "Processing photo...");
+      // Aggressive resize/compress for speed
+      const compressed = await compressForSpeed(file);
       imageBlob = compressed;
     }
+
+    showSavingOverlay(true, "Saving...");
 
     const data = {
       id,
@@ -224,8 +270,8 @@ async function saveMemory(latlng, name, desc, file, icon) {
     map.closePopup();
   } catch (err) {
     console.error(err);
-    alert("Error saving memory locally.");
     showSavingOverlay(false);
+    alert(`Save failed: ${err.message || err}`);
   }
 }
 
@@ -238,7 +284,8 @@ async function loadMemories() {
   try {
     memories = await getLocalMemories();
   } catch (e) {
-    console.error("Failed to load local memories:", e);
+    console.error("Failed to load memories:", e);
+    alert("Could not load saved memories. If you are in Private Browsing, turn it off.");
     return;
   }
 
@@ -295,22 +342,6 @@ async function loadMemories() {
     item.onclick = () => map.setView([lat, lng], 6);
     document.getElementById("memoryList").appendChild(item);
   });
-}
-
-/* -------------------- Helpers -------------------- */
-function escapeHTML(str) {
-  return String(str).replace(/[&<>"']/g, s => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[s]));
-}
-
-function cssEscape(value) {
-  if (window.CSS && CSS.escape) return CSS.escape(value);
-  return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
 }
 </script>
 </body>
