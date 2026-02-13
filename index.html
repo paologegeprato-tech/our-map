@@ -24,7 +24,7 @@ html,body{
   width:100%;
   background:#111;
   color:#fff;
-  opacity:.92;
+  opacity:.9;
   z-index:9000;
   padding:10px 12px;
   box-sizing:border-box;
@@ -37,7 +37,7 @@ html,body{
   position:fixed;
   width:100%;
   height:100%;
-  background:#3b0000;
+  background:#2a0000;
   display:flex;
   flex-direction:column;
   justify-content:center;
@@ -59,47 +59,63 @@ html,body{
 
 #map{height:100%;width:100%;}
 
-/* Toggle Button */
+/* Smaller, less-in-the-way toggle button */
 #memoriesToggle{
   position:fixed;
-  top:60px;
+  top:58px;
   right:10px;
-  background:#ff4d6d;
+  background:rgba(255,77,109,0.9);
   color:white;
   border:none;
-  border-radius:25px;
-  padding:10px 14px;
-  font-size:14px;
+  border-radius:999px;
+  padding:8px 10px;
+  font-size:16px;          /* emoji size */
+  line-height:16px;
   cursor:pointer;
   z-index:850;
-  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+  box-shadow:0 4px 10px rgba(0,0,0,0.25);
+  width:40px;
+  height:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
+#memoriesToggle:active{transform:scale(0.97);}
 
 /* Slide Panel */
 #sidePanel{
   position:fixed;
-  top:100px;
-  right:-260px;
-  width:230px;
-  max-height:70%;
+  top:104px;
+  right:-270px;
+  width:240px;
+  max-height:68%;
   overflow:auto;
-  background:rgba(255,255,255,0.95);
-  backdrop-filter:blur(10px);
-  border-radius:15px;
-  padding:10px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+  background:rgba(25, 8, 12, 0.75); /* romantic dark glass */
+  color:#fff;
+  border:1px solid rgba(255,255,255,0.12);
+  backdrop-filter:blur(12px);
+  border-radius:18px;
+  padding:12px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.35);
   z-index:800;
-  transition:right 0.3s ease;
+  transition:right 0.28s ease;
 }
 #sidePanel.open{ right:10px; }
 
+#sidePanel h3{
+  margin:4px 0 10px;
+  font-weight:700;
+  font-size:16px;
+}
+
 .memoryItem{
-  padding:6px;
-  border-bottom:1px solid #eee;
+  padding:8px 6px;
+  border-bottom:1px solid rgba(255,255,255,0.12);
   cursor:pointer;
   font-size:14px;
+  color:#fff;
 }
-.memoryItem:hover{background:#f8f8f8;}
+.memoryItem:hover{background:rgba(255,255,255,0.08); border-radius:10px;}
 
 .leaflet-popup-content-wrapper{
   border-radius:15px;
@@ -117,14 +133,14 @@ html,body{
   padding:8px;
   border:none;
   color:white;
-  border-radius:8px;
+  border-radius:10px;
   cursor:pointer;
   width:100%;
 }
 .saveBtn{background:#ff4d6d;}
 .saveBtn:hover{background:#ff6382;}
-.deleteBtn{background:#999;}
-.deleteBtn:hover{background:#aaa;}
+.deleteBtn{background:#666;}
+.deleteBtn:hover{background:#777;}
 
 .iconChoice{
   font-size:20px;
@@ -132,9 +148,10 @@ html,body{
   margin:5px;
 }
 .iconChoice.selected{
-  text-shadow:0 0 5px #ff4d6d;
+  text-shadow:0 0 8px rgba(255,77,109,0.9);
 }
 
+/* Saving overlay */
 #savingOverlay{
   position:fixed;
   left:0;
@@ -150,13 +167,21 @@ html,body{
   z-index:2000;
   display:none;
 }
+.heartbeat{animation:beat .6s infinite alternate;}
+@keyframes beat{from{transform:scale(1);}to{transform:scale(1.3);}}
 
-.heartbeat{
-  animation:beat .6s infinite alternate;
+/* Floating hearts */
+.heart{
+  position:absolute;
+  font-size:22px;
+  pointer-events:none;
+  z-index:1200;
+  animation:floatUp 900ms ease-out forwards;
+  filter:drop-shadow(0 6px 10px rgba(0,0,0,0.35));
 }
-@keyframes beat{
-  from{transform:scale(1);}
-  to{transform:scale(1.3);}
+@keyframes floatUp{
+  0%{transform:translateY(0) scale(1); opacity:1;}
+  100%{transform:translateY(-60px) scale(1.6); opacity:0;}
 }
 </style>
 </head>
@@ -170,7 +195,8 @@ html,body{
   <button id="enterBtn">Enter Our World</button>
 </div>
 
-<button id="memoriesToggle">Our Memories</button>
+<!-- Smaller toggle (emoji) -->
+<button id="memoriesToggle" aria-label="Toggle memories">💌</button>
 
 <div id="sidePanel">
   <h3>Our Memories</h3>
@@ -185,7 +211,7 @@ html,body{
 
 <script>
 /* ========= Local Storage ========= */
-const STORE_KEY = "ourworld_memories_v4";
+const STORE_KEY = "ourworld_memories_v5";
 
 function loadStore(){
   try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}
@@ -221,6 +247,11 @@ function showSavingOverlay(show,text){
   if(show)o.innerHTML=`<span class="heartbeat">${text||"Working..."}</span>`;
 }
 
+/* ========= Romantic Dark Map Theme ========= */
+/* Uses CartoDB Dark Matter tiles (free). */
+const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const DARK_ATTR = '&copy; OpenStreetMap contributors &copy; CARTO';
+
 /* ========= Compression ========= */
 function withTimeout(promise,ms,label){
   return Promise.race([
@@ -248,6 +279,28 @@ async function compressToDataURL(file){
   return canvas.toDataURL("image/jpeg",QUALITY);
 }
 
+/* ========= Floating Hearts (safe + lightweight) ========= */
+function showHeartTrail(latlng, icon){
+  if(!map) return;
+
+  const mapDiv=document.getElementById("map");
+  const p=map.latLngToContainerPoint(latlng);
+  const emojis = (icon==="❤️")
+    ? ["❤️","💕","💞","💖"]
+    : ["✨","💫","🌟"];
+
+  for(let i=0;i<4;i++){
+    const h=document.createElement("div");
+    h.className="heart";
+    h.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+    h.style.left=(p.x + (Math.random()*34 - 17)) + "px";
+    h.style.top =(p.y + (Math.random()*34 - 17)) + "px";
+    h.style.animationDelay=(i*0.08) + "s";
+    mapDiv.appendChild(h);
+    setTimeout(()=>h.remove(), 1100);
+  }
+}
+
 /* ========= Map ========= */
 let map;
 let markers=[];
@@ -260,7 +313,10 @@ document.getElementById("enterBtn").onclick=()=>{
 
 function initMap(){
   map=L.map("map").setView([20,0],2);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).addTo(map);
+
+  // Dark romantic tiles
+  L.tileLayer(DARK_TILES,{maxZoom:19, attribution: DARK_ATTR}).addTo(map);
+
   map.on("click",e=>openMemoryPopup(e.latlng));
   setStatus(`Saved <strong>${loadStore().length}</strong> memories`);
 }
@@ -308,7 +364,10 @@ function addMemoryToUI(mem){
   const item=document.createElement("div");
   item.className="memoryItem";
   item.innerText=`${mem.icon} ${mem.name||"Untitled Place"}`;
-  item.onclick=()=>map.setView([mem.lat,mem.lng],6);
+  item.onclick=()=>{
+    map.setView([mem.lat,mem.lng],6);
+    panel.classList.add("open"); // optional: open panel when selecting
+  };
   memoryListEl.prepend(item);
 }
 
@@ -381,7 +440,7 @@ function openMemoryPopup(latlng){
     const imageDataURL=file?await compressToDataURL(file):null;
 
     const mem={
-      id:crypto.randomUUID(),
+      id:(crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2),
       lat:latlng.lat,
       lng:latlng.lng,
       name,
@@ -393,6 +452,9 @@ function openMemoryPopup(latlng){
 
     addToStore(mem);
     addMemoryToUI(mem);
+
+    // Floating hearts (safe)
+    showHeartTrail(latlng, selectedIcon);
 
     showSavingOverlay(false);
     map.closePopup(popup);
