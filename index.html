@@ -45,6 +45,23 @@ html,body{
   color:white;
   z-index:9999;
   text-align:center;
+  padding:24px;
+  box-sizing:border-box;
+}
+#intro h1{
+  margin:0 0 10px;
+  font-size:34px;
+}
+#intro .tagline{
+  margin:0 0 16px;
+  font-size:16px;
+  opacity:0.95;
+  max-width:520px;
+}
+#intro .fox{
+  font-size:42px;
+  margin:0 0 18px;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,0.35));
 }
 #enterBtn{
   padding:12px 25px;
@@ -69,7 +86,7 @@ html,body{
   border:none;
   border-radius:999px;
   padding:8px 10px;
-  font-size:16px;          /* emoji size */
+  font-size:16px;
   line-height:16px;
   cursor:pointer;
   z-index:850;
@@ -90,7 +107,7 @@ html,body{
   width:240px;
   max-height:68%;
   overflow:auto;
-  background:rgba(25, 8, 12, 0.75); /* romantic dark glass */
+  background:rgba(25, 8, 12, 0.75);
   color:#fff;
   border:1px solid rgba(255,255,255,0.12);
   backdrop-filter:blur(12px);
@@ -101,7 +118,6 @@ html,body{
   transition:right 0.28s ease;
 }
 #sidePanel.open{ right:10px; }
-
 #sidePanel h3{
   margin:4px 0 10px;
   font-weight:700;
@@ -115,7 +131,10 @@ html,body{
   font-size:14px;
   color:#fff;
 }
-.memoryItem:hover{background:rgba(255,255,255,0.08); border-radius:10px;}
+.memoryItem:hover{
+  background:rgba(255,255,255,0.08);
+  border-radius:10px;
+}
 
 .leaflet-popup-content-wrapper{
   border-radius:15px;
@@ -192,6 +211,8 @@ html,body{
 
 <div id="intro">
   <h1>Welcome to Our World ❤️</h1>
+  <p class="tagline">for the memories of yesterday, today, tomorrow and forever .</p>
+  <div class="fox">🦊</div>
   <button id="enterBtn">Enter Our World</button>
 </div>
 
@@ -211,178 +232,184 @@ html,body{
 
 <script>
 /* ========= Local Storage ========= */
-const STORE_KEY = "ourworld_memories_v5";
+const STORE_KEY = "ourworld_memories_v6";
 
 function loadStore(){
-  try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}
-  catch{return [];}
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); }
+  catch { return []; }
 }
 function saveStore(arr){
-  localStorage.setItem(STORE_KEY,JSON.stringify(arr));
+  localStorage.setItem(STORE_KEY, JSON.stringify(arr));
 }
 function addToStore(mem){
-  const all=loadStore();
+  const all = loadStore();
   all.push(mem);
   saveStore(all);
   return all.length;
 }
 function deleteFromStore(id){
-  const all=loadStore().filter(m=>m.id!==id);
+  const all = loadStore().filter(m => m.id !== id);
   saveStore(all);
   return all.length;
 }
 
 /* ========= UI ========= */
-const statusBar=document.getElementById("statusBar");
-const memoryListEl=document.getElementById("memoryList");
-const panel=document.getElementById("sidePanel");
-const toggle=document.getElementById("memoriesToggle");
+const statusBar = document.getElementById("statusBar");
+const memoryListEl = document.getElementById("memoryList");
+const panel = document.getElementById("sidePanel");
+const toggle = document.getElementById("memoriesToggle");
 
-toggle.addEventListener("click",()=>panel.classList.toggle("open"));
+toggle.addEventListener("click", () => panel.classList.toggle("open"));
 
-function setStatus(html){statusBar.innerHTML=html;}
-function showSavingOverlay(show,text){
-  const o=document.getElementById("savingOverlay");
-  o.style.display=show?"flex":"none";
-  if(show)o.innerHTML=`<span class="heartbeat">${text||"Working..."}</span>`;
+function setStatus(html){ statusBar.innerHTML = html; }
+function showSavingOverlay(show, text){
+  const o = document.getElementById("savingOverlay");
+  o.style.display = show ? "flex" : "none";
+  if (show) o.innerHTML = `<span class="heartbeat">${text || "Working..."}</span>`;
 }
 
-/* ========= Romantic Dark Map Theme ========= */
-/* Uses CartoDB Dark Matter tiles (free). */
-const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
-const DARK_ATTR = '&copy; OpenStreetMap contributors &copy; CARTO';
-
-/* ========= Compression ========= */
-function withTimeout(promise,ms,label){
+/* ========= Photo compression ========= */
+function withTimeout(promise, ms, label){
   return Promise.race([
     promise,
-    new Promise((_,reject)=>setTimeout(()=>reject(new Error(label||"Timed out")),ms))
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label || "Timed out")), ms))
   ]);
 }
 async function compressToDataURL(file){
-  const MAX_WIDTH=420;
-  const QUALITY=0.33;
+  const MAX_WIDTH = 420;
+  const QUALITY = 0.33;
 
-  const img=new Image();
-  img.src=URL.createObjectURL(file);
-  await withTimeout(img.decode(),8000);
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await withTimeout(img.decode(), 8000);
 
-  const scale=Math.min(1,MAX_WIDTH/img.width);
-  const w=Math.max(1,Math.round(img.width*scale));
-  const h=Math.max(1,Math.round(img.height*scale));
+  const scale = Math.min(1, MAX_WIDTH / img.width);
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
 
-  const canvas=document.createElement("canvas");
-  canvas.width=w;canvas.height=h;
-  canvas.getContext("2d").drawImage(img,0,0,w,h);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+
   URL.revokeObjectURL(img.src);
 
-  return canvas.toDataURL("image/jpeg",QUALITY);
+  return canvas.toDataURL("image/jpeg", QUALITY);
 }
 
-/* ========= Floating Hearts (safe + lightweight) ========= */
+/* ========= Floating Hearts ========= */
 function showHeartTrail(latlng, icon){
-  if(!map) return;
+  if (!map) return;
 
-  const mapDiv=document.getElementById("map");
-  const p=map.latLngToContainerPoint(latlng);
-  const emojis = (icon==="❤️")
+  const mapDiv = document.getElementById("map");
+  const p = map.latLngToContainerPoint(latlng);
+  const emojis = (icon === "❤️")
     ? ["❤️","💕","💞","💖"]
     : ["✨","💫","🌟"];
 
-  for(let i=0;i<4;i++){
-    const h=document.createElement("div");
-    h.className="heart";
-    h.textContent=emojis[Math.floor(Math.random()*emojis.length)];
-    h.style.left=(p.x + (Math.random()*34 - 17)) + "px";
-    h.style.top =(p.y + (Math.random()*34 - 17)) + "px";
-    h.style.animationDelay=(i*0.08) + "s";
+  for (let i = 0; i < 4; i++){
+    const h = document.createElement("div");
+    h.className = "heart";
+    h.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    h.style.left = (p.x + (Math.random() * 34 - 17)) + "px";
+    h.style.top  = (p.y + (Math.random() * 34 - 17)) + "px";
+    h.style.animationDelay = (i * 0.08) + "s";
     mapDiv.appendChild(h);
-    setTimeout(()=>h.remove(), 1100);
+    setTimeout(() => h.remove(), 1100);
   }
 }
 
 /* ========= Map ========= */
 let map;
-let markers=[];
+let markers = [];
 
-document.getElementById("enterBtn").onclick=()=>{
-  document.getElementById("intro").style.display="none";
+document.getElementById("enterBtn").onclick = () => {
+  document.getElementById("intro").style.display = "none";
   initMap();
   renderAll();
 };
 
 function initMap(){
-  map=L.map("map").setView([20,0],2);
+  map = L.map("map").setView([20, 0], 2);
 
-  // Dark romantic tiles
-  L.tileLayer(DARK_TILES,{maxZoom:19, attribution: DARK_ATTR}).addTo(map);
+  // Smooth dark tiles (reduces visible seams/grid lines on iPhone)
+  L.tileLayer(
+    "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
+    {
+      maxZoom: 20,
+      tileSize: 512,
+      zoomOffset: -1,
+      detectRetina: true,
+      attribution: '&copy; OpenStreetMap contributors &copy; Stadia Maps'
+    }
+  ).addTo(map);
 
-  map.on("click",e=>openMemoryPopup(e.latlng));
+  map.on("click", e => openMemoryPopup(e.latlng));
   setStatus(`Saved <strong>${loadStore().length}</strong> memories`);
 }
 
 function clearUI(){
-  markers.forEach(m=>map.removeLayer(m));
-  markers=[];
-  memoryListEl.innerHTML="";
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  memoryListEl.innerHTML = "";
 }
 
 function addMemoryToUI(mem){
-  const marker=L.marker([mem.lat,mem.lng],{
-    icon:L.divIcon({
-      className:"",
-      html:`<div style="font-size:16px;">${mem.icon}</div>`,
-      iconSize:[20,20]
+  const marker = L.marker([mem.lat, mem.lng], {
+    icon: L.divIcon({
+      className: "",
+      html: `<div style="font-size:16px;">${mem.icon}</div>`,
+      iconSize: [20, 20]
     })
   }).addTo(map);
 
-  marker.on("click",()=>{
-    const imgHTML=mem.imageDataURL?`<img src="${mem.imageDataURL}" class="popup-img">`:"";
-    const content=`
-      <h4>${mem.name||"Untitled Place"}</h4>
+  marker.on("click", () => {
+    const imgHTML = mem.imageDataURL ? `<img src="${mem.imageDataURL}" class="popup-img">` : "";
+    const content = `
+      <h4>${mem.name || "Untitled Place"}</h4>
       ${imgHTML}
-      <p>${mem.desc||""}</p>
+      <p>${mem.desc || ""}</p>
       <small>${mem.date}</small>
       <button class="deleteBtn" data-id="${mem.id}">Delete</button>
     `;
     marker.bindPopup(content).openPopup();
 
-    setTimeout(()=>{
-      const btn=document.querySelector(`.deleteBtn[data-id="${mem.id}"]`);
-      if(btn){
-        btn.onclick=()=>{
+    setTimeout(() => {
+      const btn = document.querySelector(\`.deleteBtn[data-id="\${mem.id}"]\`);
+      if (btn){
+        btn.onclick = () => {
           deleteFromStore(mem.id);
           renderAll();
           map.closePopup();
         };
       }
-    },0);
+    }, 0);
   });
 
   markers.push(marker);
 
-  const item=document.createElement("div");
-  item.className="memoryItem";
-  item.innerText=`${mem.icon} ${mem.name||"Untitled Place"}`;
-  item.onclick=()=>{
-    map.setView([mem.lat,mem.lng],6);
-    panel.classList.add("open"); // optional: open panel when selecting
+  const item = document.createElement("div");
+  item.className = "memoryItem";
+  item.innerText = `${mem.icon} ${mem.name || "Untitled Place"}`;
+  item.onclick = () => {
+    map.setView([mem.lat, mem.lng], 6);
+    panel.classList.add("open");
   };
   memoryListEl.prepend(item);
 }
 
 function renderAll(){
   clearUI();
-  const all=loadStore();
+  const all = loadStore();
   all.forEach(addMemoryToUI);
   setStatus(`Saved <strong>${all.length}</strong> memories`);
 }
 
 /* ========= Popup ========= */
 function openMemoryPopup(latlng){
-  const wrap=document.createElement("div");
+  const wrap = document.createElement("div");
 
-  wrap.innerHTML=`
+  wrap.innerHTML = `
     <input class="placeName" placeholder="Place name" style="width:100%;margin-bottom:5px;">
     <textarea class="description" placeholder="Description" style="width:100%;height:60px;"></textarea>
     <input type="file" class="photoInput" accept="image/*">
@@ -396,64 +423,63 @@ function openMemoryPopup(latlng){
     <button type="button" class="saveBtn">Save</button>
   `;
 
-  const popup=L.popup({maxWidth:260})
+  const popup = L.popup({ maxWidth: 260 })
     .setLatLng(latlng)
     .setContent(wrap)
     .openOn(map);
 
-  let selectedIcon="❤️";
+  let selectedIcon = "❤️";
 
-  wrap.querySelectorAll(".iconChoice").forEach(ic=>{
-    ic.onclick=()=>{
-      wrap.querySelectorAll(".iconChoice").forEach(i=>i.classList.remove("selected"));
+  wrap.querySelectorAll(".iconChoice").forEach(ic => {
+    ic.onclick = () => {
+      wrap.querySelectorAll(".iconChoice").forEach(i => i.classList.remove("selected"));
       ic.classList.add("selected");
-      selectedIcon=ic.textContent;
+      selectedIcon = ic.textContent;
     };
   });
 
-  const input=wrap.querySelector(".photoInput");
-  const preview=wrap.querySelector(".photoPreview");
-  const status=wrap.querySelector(".photoStatus");
+  const input = wrap.querySelector(".photoInput");
+  const preview = wrap.querySelector(".photoPreview");
+  const status = wrap.querySelector(".photoStatus");
 
-  input.onchange=()=>{
-    const f=input.files[0];
-    if(!f){
-      preview.style.display="none";
+  input.onchange = () => {
+    const f = input.files[0];
+    if (!f){
+      preview.style.display = "none";
       return;
     }
-    preview.src=URL.createObjectURL(f);
-    preview.style.display="block";
-    status.textContent=`Selected: ${f.name}`;
+    preview.src = URL.createObjectURL(f);
+    preview.style.display = "block";
+    status.textContent = `Selected: ${f.name}`;
   };
 
-  wrap.querySelector(".saveBtn").onclick=async()=>{
-    const name=wrap.querySelector(".placeName").value.trim();
-    const desc=wrap.querySelector(".description").value.trim();
-    const file=input.files[0];
+  wrap.querySelector(".saveBtn").onclick = async () => {
+    const name = wrap.querySelector(".placeName").value.trim();
+    const desc = wrap.querySelector(".description").value.trim();
+    const file = input.files[0];
 
-    if(!name&&!desc&&!file){
+    if (!name && !desc && !file){
       alert("Please add something to save.");
       return;
     }
 
-    showSavingOverlay(true,file?"Processing photo...":"Saving...");
-    const imageDataURL=file?await compressToDataURL(file):null;
+    showSavingOverlay(true, file ? "Processing photo..." : "Saving...");
+    const imageDataURL = file ? await compressToDataURL(file) : null;
 
-    const mem={
-      id:(crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2),
-      lat:latlng.lat,
-      lng:latlng.lng,
+    const mem = {
+      id: (crypto && crypto.randomUUID) ? crypto.randomUUID() : (String(Date.now()) + Math.random().toString(16).slice(2)),
+      lat: latlng.lat,
+      lng: latlng.lng,
       name,
       desc,
-      icon:selectedIcon,
-      date:new Date().toLocaleDateString(),
+      icon: selectedIcon,
+      date: new Date().toLocaleDateString(),
       imageDataURL
     };
 
     addToStore(mem);
     addMemoryToUI(mem);
 
-    // Floating hearts (safe)
     showHeartTrail(latlng, selectedIcon);
 
     showSavingOverlay(false);
