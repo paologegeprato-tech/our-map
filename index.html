@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Our World ❤️</title>
+<title>Our World ❤️</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
 <style>
 html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:hidden;}
 #intro{position:fixed;width:100%;height:100%;background:#3b0000;display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;z-index:9999;text-align:center;}
@@ -18,8 +19,12 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 .leaflet-popup-content-wrapper{border-radius:15px;width:260px!important;}
 .popup-img{width:100%;max-height:150px;object-fit:contain;border-radius:10px;}
 .saveBtn,.deleteBtn{margin-top:8px;padding:8px;border:none;color:white;border-radius:8px;cursor:pointer;width:100%;}
-.saveBtn{background:#ff4d6d;} .saveBtn:hover{background:#ff6382;} .deleteBtn{background:#999;} .deleteBtn:hover{background:#aaa;}
-.iconChoice{font-size:20px;cursor:pointer;margin:5px;} .iconChoice.selected{text-shadow:0 0 5px #ff4d6d;}
+.saveBtn{background:#ff4d6d;}
+.saveBtn:hover{background:#ff6382;}
+.deleteBtn{background:#999;}
+.deleteBtn:hover{background:#aaa;}
+.iconChoice{font-size:20px;cursor:pointer;margin:5px;}
+.iconChoice.selected{text-shadow:0 0 5px #ff4d6d;}
 .heart{position:absolute;font-size:22px;animation:floatUp .8s ease-out forwards;pointer-events:none;z-index:1000;}
 @keyframes floatUp{0%{transform:translateY(0)scale(1);opacity:1;}100%{transform:translateY(-50px)scale(1.5);opacity:0;}}
 #savingOverlay{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,0.5);color:white;font-size:20px;z-index:2000;display:none;}
@@ -27,16 +32,18 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 @keyframes beat{from{transform:scale(1);}to{transform:scale(1.3);}}
 </style>
 </head>
+
 <body>
+
 <div id="intro">
-  <h1>Welcome to Our World ❤️</h1>
-  <button id="enterBtn">Enter Our World</button>
+  <h1>Welcome to Our World ❤️</h1>
+  <button id="enterBtn">Enter Our World</button>
 </div>
 
 <div id="map"></div>
 
 <div id="sidePanel">
-  <h3>Our Memories</h3>
+  <h3>Our Memories</h3>
   <div id="memoryList"></div>
 </div>
 
@@ -44,20 +51,18 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<!-- 🔥 Firebase & App Logic -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC_TIzHM4IhiR3CRBS3amw2XzEgetxateg",
+  apiKey: "YOUR_API_KEY",
   authDomain: "ourworld-39697.firebaseapp.com",
   projectId: "ourworld-39697",
   storageBucket: "ourworld-39697.appspot.com",
   messagingSenderId: "64534019584",
-  appId: "1:64534019584:web:fa2221de37f63b691222e5",
-  measurementId: "G-VE2C2EYFYV"
+  appId: "1:64534019584:web:fa2221de37f63b691222e5"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -87,17 +92,27 @@ function showSavingOverlay(show, text) {
 
 function openMemoryPopup(latlng) {
   const html = `
-    <input id="placeName" placeholder="Place name" style="width:100%;margin-bottom:5px;">
+    <input id="placeName" placeholder="Place name" style="width:100%;margin-bottom:5px;">
     <textarea id="description" placeholder="Description" style="width:100%;height:60px;"></textarea>
     <input type="file" id="photoInput" accept="image/*">
-    <div><span class="iconChoice">❤️</span><span class="iconChoice">🍔</span><span class="iconChoice">✈️</span></div>
-    <button class="saveBtn">Save</button>`;
-  L.popup({ maxWidth: 260, autoPan: true }).setLatLng(latlng).setContent(html).openOn(map);
+    <div>
+      <span class="iconChoice">❤️</span>
+      <span class="iconChoice">🍔</span>
+      <span class="iconChoice">✈️</span>
+    </div>
+    <button class="saveBtn">Save</button>
+  `;
+  L.popup({ maxWidth: 260, autoPan: true })
+    .setLatLng(latlng)
+    .setContent(html)
+    .openOn(map);
+
   map.once("popupopen", () => initPopupEvents(latlng));
 }
 
 function initPopupEvents(latlng) {
   let selectedIcon = "❤️";
+
   document.querySelectorAll(".iconChoice").forEach(ic => {
     ic.onclick = () => {
       document.querySelectorAll(".iconChoice").forEach(i => i.classList.remove("selected"));
@@ -110,22 +125,29 @@ function initPopupEvents(latlng) {
     const name = document.getElementById("placeName").value.trim();
     const desc = document.getElementById("description").value.trim();
     const file = document.getElementById("photoInput").files[0];
-    if (!name && !desc && !file) return alert("Please add something to save.");
+
+    if (!name && !desc && !file) {
+      alert("Please add something to save.");
+      return;
+    }
+
     await saveMemory(latlng, name, desc, file || null, selectedIcon);
   };
 }
 
-/* ---------- Save / Load from Firebase ---------- */
 async function saveMemory(latlng, name, desc, file, icon) {
-  showSavingOverlay(true, "☁️ Uploading…");
+  showSavingOverlay(true, "Uploading...");
+
   try {
     let photoURL = null;
+
     if (file) {
       const id = crypto.randomUUID();
       const fRef = storageRef(storage, `memories/${id}.jpg`);
       await uploadBytes(fRef, file);
       photoURL = await getDownloadURL(fRef);
     }
+
     const data = {
       lat: latlng.lat,
       lng: latlng.lng,
@@ -135,13 +157,16 @@ async function saveMemory(latlng, name, desc, file, icon) {
       image: photoURL,
       date: new Date().toLocaleDateString()
     };
+
     await addDoc(collection(db, "memories"), data);
+
     showSavingOverlay(false);
     loadMemories();
     map.closePopup();
+
   } catch (err) {
     console.error(err);
-    alert("⚠️ Error saving memory.");
+    alert("Error saving memory.");
     showSavingOverlay(false);
   }
 }
@@ -150,52 +175,50 @@ async function loadMemories() {
   markers.forEach(m => map.removeLayer(m));
   markers = [];
   document.getElementById("memoryList").innerHTML = "";
-  const snap = await getDocs(collection(db, "memories"));
-  snap.forEach(doc => {
-    const mem = doc.data();
-    const marker = L.marker([mem.lat, mem.lng], {
-      icon: L.divIcon({
-        className: "",
-        html: `<div style="font-size:16px;">${mem.icon}</div>`,
-        iconSize: [20, 20]
-      })
-    }).addTo(map);
 
-    marker.on("click", () => {
-      const content = `
-        <h4>${mem.name || "Untitled Place"}</h4>
-        ${mem.image ? `<img src="${mem.image}" class="popup-img">` : ""}
-        <p>${mem.desc || ""}</p>
-        <small>${mem.date}</small>`;
-      marker.bindPopup(content, { maxWidth: 260 }).openPopup();
+  try {
+    const snap = await getDocs(collection(db, "memories"));
+
+    snap.forEach(doc => {
+      const mem = doc.data();
+
+      const lat = Number(mem.lat);
+      const lng = Number(mem.lng);
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: "",
+          html: `<div style="font-size:16px;">${mem.icon || "📍"}</div>`,
+          iconSize: [20, 20]
+        })
+      }).addTo(map);
+
+      marker.on("click", () => {
+        const content = `
+          <h4>${mem.name || "Untitled Place"}</h4>
+          ${mem.image ? `<img src="${mem.image}" class="popup-img">` : ""}
+          <p>${mem.desc || ""}</p>
+          <small>${mem.date}</small>
+        `;
+        marker.bindPopup(content, { maxWidth: 260 }).openPopup();
+      });
+
+      markers.push(marker);
+
+      const item = document.createElement("div");
+      item.className = "memoryItem";
+      item.innerText = `${mem.icon || "📍"} ${mem.name || "Untitled Place"}`;
+      item.onclick = () => map.setView([lat, lng], 6);
+      document.getElementById("memoryList").appendChild(item);
     });
 
-    markers.push(marker);
-    const item = document.createElement("div");
-    item.className = "memoryItem";
-    item.innerText = `${mem.icon} ${mem.name || "Untitled Place"}`;
-    item.onclick = () => map.setView([mem.lat, mem.lng], 6);
-    document.getElementById("memoryList").appendChild(item);
-  });
-}
-
-/* ---------- Heart Animation ---------- */
-function showHeartTrail(latlng, icon) {
-  const mapDiv = document.getElementById("map");
-  const p = map.latLngToContainerPoint(latlng);
-  const em = icon === "❤️" ? ["❤️", "💕", "💞", "💖"] : ["💫", "✨", "🌟"];
-
-  for (let i = 0; i < 4; i++) {
-    const h = document.createElement("div");
-    h.className = "heart";
-    h.textContent = em[Math.floor(Math.random() * em.length)];
-    h.style.left = (p.x + (Math.random() * 30 - 15)) + "px";
-    h.style.top  = (p.y + (Math.random() * 30 - 15)) + "px";
-    h.style.animationDelay = (i * 0.1) + "s";
-    mapDiv.appendChild(h);
-    setTimeout(() => h.remove(), 900);
+  } catch (e) {
+    console.error("Failed to load memories:", e);
   }
 }
 </script>
+
 </body>
 </html>
