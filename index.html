@@ -10,7 +10,11 @@
 <style>
 html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:hidden;}
 
-/* Top Status */
+/* Reduce tile seam lines */
+.leaflet-container { background: #0b0b10; }
+.leaflet-tile { transform: translateZ(0); } /* helps on iPhone */
+.leaflet-tile-container { will-change: transform; }
+
 #statusBar{
   position:fixed;left:0;top:0;width:100%;
   background:#111;color:#fff;opacity:.9;
@@ -133,7 +137,7 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-/* ===================== Safety: show errors (helps if Safari stops script) ===================== */
+/* ===================== Safety: show errors ===================== */
 window.addEventListener("error", function(e){
   alert("Error: " + (e.message || "Unknown error"));
 });
@@ -142,7 +146,7 @@ window.addEventListener("unhandledrejection", function(e){
 });
 
 /* ===================== Local Storage ===================== */
-const STORE_KEY = "ourworld_memories_v7";
+const STORE_KEY = "ourworld_memories_v8";
 
 function loadStore(){
   try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); }
@@ -176,7 +180,6 @@ function showSavingOverlay(show, text){
   if (show) o.innerHTML = '<span class="heartbeat">' + (text || "Working...") + '</span>';
 }
 
-/* Toggle panel */
 toggle.addEventListener("click", function(){
   panel.classList.toggle("open");
 });
@@ -239,7 +242,7 @@ function showHeartTrail(latlng, icon){
 var map = null;
 var markers = [];
 
-/* IMPORTANT: bind Enter button AFTER DOM is ready */
+/* Bind Enter button after DOM ready */
 document.addEventListener("DOMContentLoaded", function(){
   var enterBtn = document.getElementById("enterBtn");
   enterBtn.addEventListener("click", function(){
@@ -250,19 +253,20 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 
 function initMap(){
-  if (map) return; // prevent double init
+  if (map) return;
 
   map = L.map("map").setView([20, 0], 2);
 
-  // Smooth dark tiles (removes seams/grid lines on iPhone)
+  // ✅ NO-AUTH dark tiles (won’t give 401)
+  // CartoDB Dark Matter
   L.tileLayer(
-    "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
+    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
     {
-      maxZoom: 20,
-      tileSize: 512,
-      zoomOffset: -1,
-      detectRetina: true,
-      attribution: '&copy; OpenStreetMap contributors &copy; Stadia Maps'
+      maxZoom: 19,
+      subdomains: "abcd",
+      updateWhenIdle: true,
+      keepBuffer: 4,
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
     }
   ).addTo(map);
 
@@ -428,6 +432,5 @@ function openMemoryPopup(latlng){
   };
 }
 </script>
-
 </body>
 </html>
