@@ -12,10 +12,7 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 #statusBar{
   position:fixed;left:0;top:0;width:100%;
   background:#111;color:#fff;opacity:0.92;
-  z-index:9000;
-  padding:10px 12px;
-  box-sizing:border-box;
-  font-size:14px;
+  z-index:9000;padding:10px 12px;box-sizing:border-box;font-size:14px;
 }
 #statusBar strong{color:#ff4d6d;}
 #intro{position:fixed;width:100%;height:100%;background:#3b0000;display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;z-index:9999;text-align:center;}
@@ -118,17 +115,16 @@ async function idbDelete(id) {
 }
 
 async function storageSelfTest() {
-  // one-time check, no alerts
   try {
     const db = await openDB();
     db.close();
-    setStatus(`Storage: <strong>OK</strong> (local on this iPhone)`);
-  } catch (e) {
+    setStatus(`Storage: <strong>OK</strong> (saved on this iPhone/browser)`);
+  } catch {
     setStatus(`Storage: <strong>BLOCKED</strong> (iPhone/browser settings)`);
   }
 }
 
-/* ===================== Fast iPhone compression ===================== */
+/* ===================== Fast iPhone compression -> DATA URL ===================== */
 function withTimeout(promise, ms, label) {
   return Promise.race([
     promise,
@@ -136,28 +132,8 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-function dataURLToBlob(dataURL) {
-  const parts = dataURL.split(",");
-  const mime = parts[0].match(/:(.*?);/)[1];
-  const bstr = atob(parts[1]);
-  let n = bstr.length;
-  const u8 = new Uint8Array(n);
-  while (n--) u8[n] = bstr.charCodeAt(n);
-  return new Blob([u8], { type: mime });
-}
-
-async function canvasToJpegBlob(canvas, quality) {
-  const blob = await new Promise(resolve => {
-    if (!canvas.toBlob) return resolve(null);
-    canvas.toBlob(b => resolve(b), "image/jpeg", quality);
-  });
-  if (blob) return blob;
-  // iOS fallback
-  return dataURLToBlob(canvas.toDataURL("image/jpeg", quality));
-}
-
-async function compressForSpeed(file) {
-  // Fastest settings that still look fine in a small popup
+async function compressToDataURL(file) {
+  // Fast + small for popups
   const MAX_WIDTH = 420;
   const QUALITY = 0.33;
 
@@ -175,9 +151,15 @@ async function compressForSpeed(file) {
 
   const ctx = canvas.getContext("2d", { alpha:false });
   ctx.drawImage(img, 0, 0, w, h);
+
   URL.revokeObjectURL(img.src);
 
-  return await withTimeout(canvasToJpegBlob(canvas, QUALITY), 6000, "Photo compression took too long");
+  // Reliable string on iPhone
+  return await withTimeout(
+    Promise.resolve(canvas.toDataURL("image/jpeg", QUALITY)),
+    6000,
+    "Photo compression took too long"
+  );
 }
 
 /* ===================== App ===================== */
@@ -199,42 +181,79 @@ function initMap() {
 
 function openMemoryPopup(latlng) {
   const html = `
-    <input id="placeName" placeholder="Place name" style="width:100%;margin-bottom:5px;">
-    <textarea id="description" placeholder="Description" style="width:100%;height:60px;"></textarea>
-    <input type="file" id="photoInput" accept="image/*">
+    <input class="placeName" placeholder="Place name" style="width:100%;margin-bottom:5px;">
+    <textarea class="description" placeholder="Description" style="width:100%;height:60px;"></textarea>
+
+    <input type="file" class="photoInput" accept="image/*">
+    <div class="photoStatus" style="font-size:12px;color:#555;margin-top:4px;">No photo selected</div>
+    <img class="photoPreview popup-img" style="display:none;margin-top:6px;">
+
     <div>
       <span class="iconChoice selected">❤️</span>
       <span class="iconChoice">🍔</span>
       <span class="iconChoice">✈️</span>
     </div>
+
     <button class="saveBtn">Save</button>
   `;
-  L.popup({ maxWidth: 260, autoPan: true }).setLatLng(latlng).setContent(html).openOn(map);
-  map.once("popupopen", () => initPopupEvents(latlng));
-}
 
-function initPopupEvents(latlng) {
-  let selectedIcon = "❤️";
-  document.querySelectorAll(".iconChoice").forEach(ic => {
-    ic.onclick = () => {
-      document.querySelectorAll(".iconChoice").forEach(i => i.classList.remove("selected"));
-      ic.classList.add("selected");
-      selectedIcon = ic.textContent;
-    };
+  const popup = L.popup({ maxWidth: 260, autoPan: true })
+    .setLatLng(latlng)
+    .setContent(html);
+
+  popup.openOn(map);
+
+  // Attach handlers using the popup's own element (THIS is the key fix)
+  map.once("popupopen", (ev) => {
+    const container = ev.popup.getElement();
+    if (!container) return;
+
+    let selectedIcon = "❤️";
+
+    const placeNameEl = container.querySelector(".placeName");
+    const descEl = container.querySelector(".description");
+    const input = container.querySelector(".photoInput");
+    const status = container.querySelector(".photoStatus");
+    const preview = container.querySelector(".photoPreview");
+    const saveBtn = container.querySelector(".saveBtn");
+
+    // Icon selection
+    container.querySelectorAll(".iconChoice").forEach(ic => {
+      ic.addEventListener("click", () => {
+        container.querySelectorAll(".iconChoice").forEach(i => i.classList.remove("selected"));
+        ic.classList.add("selected");
+        selectedIcon = ic.textContent;
+      });
+    });
+
+    // Photo preview + status
+    input.addEventListener("change", () => {
+      const f = input.files && input.files[0];
+      if (!f) {
+        status.textContent = "No photo selected";
+        preview.style.display = "none";
+        preview.src = "";
+        return;
+      }
+      status.textContent = `Selected: ${f.name} (${Math.round(f.size/1024)} KB)`;
+      preview.src = URL.createObjectURL(f);
+      preview.style.display = "block";
+    });
+
+    // Save click
+    saveBtn.addEventListener("click", async () => {
+      const name = (placeNameEl.value || "").trim();
+      const desc = (descEl.value || "").trim();
+      const file = input.files && input.files[0];
+
+      if (!name && !desc && !file) {
+        alert("Please add something to save.");
+        return;
+      }
+
+      await saveMemory(latlng, name, desc, file || null, selectedIcon);
+    });
   });
-
-  document.querySelector(".saveBtn").onclick = async () => {
-    const name = document.getElementById("placeName").value.trim();
-    const desc = document.getElementById("description").value.trim();
-    const file = document.getElementById("photoInput").files[0];
-
-    if (!name && !desc && !file) {
-      alert("Please add something to save.");
-      return;
-    }
-
-    await saveMemory(latlng, name, desc, file || null, selectedIcon);
-  };
 }
 
 function escapeHTML(str) {
@@ -267,14 +286,7 @@ function addMemoryToUI(mem) {
   }).addTo(map);
 
   marker.on("click", () => {
-    let imgHTML = "";
-    let blobURL = null;
-
-    if (mem.imageBlob) {
-      blobURL = URL.createObjectURL(mem.imageBlob);
-      imgHTML = `<img src="${blobURL}" class="popup-img">`;
-    }
-
+    const imgHTML = mem.imageDataURL ? `<img src="${mem.imageDataURL}" class="popup-img">` : "";
     const content = `
       <h4>${escapeHTML(mem.name || "Untitled Place")}</h4>
       ${imgHTML}
@@ -282,7 +294,6 @@ function addMemoryToUI(mem) {
       <small>${escapeHTML(mem.date || "")}</small>
       <button class="deleteBtn" data-id="${mem.id}">Delete</button>
     `;
-
     marker.bindPopup(content, { maxWidth: 260 }).openPopup();
 
     setTimeout(() => {
@@ -296,10 +307,6 @@ function addMemoryToUI(mem) {
         };
       }
     }, 0);
-
-    marker.once("popupclose", () => {
-      if (blobURL) URL.revokeObjectURL(blobURL);
-    });
   });
 
   markers.push(marker);
@@ -325,12 +332,12 @@ async function saveMemory(latlng, name, desc, file, icon) {
       desc,
       icon,
       date: new Date().toLocaleDateString(),
-      imageBlob: null
+      imageDataURL: null
     };
 
     if (file) {
       showSavingOverlay(true, "Processing photo...");
-      mem.imageBlob = await compressForSpeed(file);
+      mem.imageDataURL = await compressToDataURL(file);
     }
 
     showSavingOverlay(true, "Saving...");
