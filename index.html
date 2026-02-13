@@ -46,7 +46,6 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 
 <!-- 🔥 Firebase & App Logic -->
 <script type="module">
-/* ---------- Firebase Initialization ---------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
@@ -65,7 +64,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-/* ---------- App Logic ---------- */
 let map;
 let markers = [];
 
