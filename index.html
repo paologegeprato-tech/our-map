@@ -22,14 +22,13 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 .deleteBtn{background:#999;} .deleteBtn:hover{background:#aaa;}
 .iconChoice{font-size:20px;cursor:pointer;margin:5px;}
 .iconChoice.selected{text-shadow:0 0 5px #ff4d6d;}
-.heart{position:absolute;font-size:22px;animation:floatUp .8s ease-out forwards;pointer-events:none;z-index:1000;}
-@keyframes floatUp{0%{transform:translateY(0)scale(1);opacity:1;}100%{transform:translateY(-50px)scale(1.5);opacity:0;}}
 #savingOverlay{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,0.5);color:white;font-size:20px;z-index:2000;display:none;}
 .heartbeat{animation:beat .6s infinite alternate;}
 @keyframes beat{from{transform:scale(1);}to{transform:scale(1.3);}}
 </style>
 </head>
 <body>
+
 <div id="intro">
   <h1>Welcome to Our World ❤️</h1>
   <button id="enterBtn">Enter Our World</button>
@@ -44,4 +43,275 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 
 <div id="savingOverlay"><span class="heartbeat">💾</span></div>
 
-<script src="https://unpkg.com/leafl
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+/* -------------------- IndexedDB (local-only) -------------------- */
+const DB_NAME = "ourworld_local";
+const DB_VERSION = 1;
+const STORE = "memories";
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveLocalMemory(mem) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).put(mem);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getLocalMemories() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readonly");
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deleteLocalMemory(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* -------------------- Aggressive iPhone compression -------------------- */
+async function compressImageToUnder7s(file) {
+  // Very aggressive defaults for iPhone photos
+  const MAX_WIDTH = 640;  // try 480 if still too slow
+  const QUALITY = 0.45;   // try 0.35 if still too slow
+
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await img.decode();
+
+  const scale = Math.min(1, MAX_WIDTH / img.width);
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+
+  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+  ctx.drawImage(img, 0, 0, w, h);
+
+  URL.revokeObjectURL(img.src);
+
+  const blob = await new Promise(resolve => {
+    canvas.toBlob(resolve, "image/jpeg", QUALITY);
+  });
+
+  return new File([blob], "photo.jpg", { type: "image/jpeg" });
+}
+
+/* -------------------- App -------------------- */
+let map;
+let markers = [];
+
+document.getElementById("enterBtn").onclick = () => {
+  document.getElementById("intro").style.display = "none";
+  initMap();
+};
+
+function initMap() {
+  map = L.map("map").setView([20, 0], 2);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+  map.on("click", e => openMemoryPopup(e.latlng));
+  loadMemories();
+}
+
+function showSavingOverlay(show, text) {
+  const o = document.getElementById("savingOverlay");
+  o.style.display = show ? "flex" : "none";
+  if (text) o.innerHTML = `<span class="heartbeat">${text}</span>`;
+}
+
+function openMemoryPopup(latlng) {
+  const html = `
+    <input id="placeName" placeholder="Place name" style="width:100%;margin-bottom:5px;">
+    <textarea id="description" placeholder="Description" style="width:100%;height:60px;"></textarea>
+    <input type="file" id="photoInput" accept="image/*">
+    <div>
+      <span class="iconChoice selected">❤️</span>
+      <span class="iconChoice">🍔</span>
+      <span class="iconChoice">✈️</span>
+    </div>
+    <button class="saveBtn">Save</button>
+  `;
+  L.popup({ maxWidth: 260, autoPan: true }).setLatLng(latlng).setContent(html).openOn(map);
+  map.once("popupopen", () => initPopupEvents(latlng));
+}
+
+function initPopupEvents(latlng) {
+  let selectedIcon = "❤️";
+
+  document.querySelectorAll(".iconChoice").forEach(ic => {
+    ic.onclick = () => {
+      document.querySelectorAll(".iconChoice").forEach(i => i.classList.remove("selected"));
+      ic.classList.add("selected");
+      selectedIcon = ic.textContent;
+    };
+  });
+
+  document.querySelector(".saveBtn").onclick = async () => {
+    const name = document.getElementById("placeName").value.trim();
+    const desc = document.getElementById("description").value.trim();
+    const file = document.getElementById("photoInput").files[0];
+
+    if (!name && !desc && !file) {
+      alert("Please add something to save.");
+      return;
+    }
+
+    await saveMemory(latlng, name, desc, file || null, selectedIcon);
+  };
+}
+
+/* -------------------- Save / Load locally -------------------- */
+async function saveMemory(latlng, name, desc, file, icon) {
+  showSavingOverlay(true, "Saving...");
+
+  try {
+    const id = (crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : String(Date.now()) + Math.random().toString(16).slice(2);
+
+    let imageBlob = null;
+
+    if (file) {
+      console.log("Original:", (file.size / 1024 / 1024).toFixed(2), "MB");
+      const compressed = await compressImageToUnder7s(file);
+      console.log("Compressed:", (compressed.size / 1024 / 1024).toFixed(2), "MB");
+      imageBlob = compressed;
+    }
+
+    const data = {
+      id,
+      lat: latlng.lat,
+      lng: latlng.lng,
+      name,
+      desc,
+      icon,
+      imageBlob,
+      date: new Date().toLocaleDateString()
+    };
+
+    await saveLocalMemory(data);
+
+    showSavingOverlay(false);
+    await loadMemories();
+    map.closePopup();
+  } catch (err) {
+    console.error(err);
+    alert("Error saving memory locally.");
+    showSavingOverlay(false);
+  }
+}
+
+async function loadMemories() {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  document.getElementById("memoryList").innerHTML = "";
+
+  let memories = [];
+  try {
+    memories = await getLocalMemories();
+  } catch (e) {
+    console.error("Failed to load local memories:", e);
+    return;
+  }
+
+  memories = memories.reverse();
+
+  memories.forEach(mem => {
+    const lat = Number(mem.lat);
+    const lng = Number(mem.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    const marker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: "",
+        html: `<div style="font-size:16px;">${mem.icon || "📍"}</div>`,
+        iconSize: [20, 20]
+      })
+    }).addTo(map);
+
+    marker.on("click", () => {
+      const imgURL = mem.imageBlob ? URL.createObjectURL(mem.imageBlob) : null;
+
+      const content = `
+        <h4>${escapeHTML(mem.name || "Untitled Place")}</h4>
+        ${imgURL ? `<img src="${imgURL}" class="popup-img">` : ""}
+        <p>${escapeHTML(mem.desc || "")}</p>
+        <small>${escapeHTML(mem.date || "")}</small>
+        <button class="deleteBtn" data-id="${mem.id}">Delete</button>
+      `;
+
+      marker.bindPopup(content, { maxWidth: 260 }).openPopup();
+
+      setTimeout(() => {
+        const btn = document.querySelector(`.deleteBtn[data-id="${cssEscape(mem.id)}"]`);
+        if (btn) {
+          btn.onclick = async () => {
+            if (!confirm("Delete this memory?")) return;
+            await deleteLocalMemory(mem.id);
+            await loadMemories();
+            map.closePopup();
+          };
+        }
+      }, 0);
+
+      marker.once("popupclose", () => {
+        if (imgURL) URL.revokeObjectURL(imgURL);
+      });
+    });
+
+    markers.push(marker);
+
+    const item = document.createElement("div");
+    item.className = "memoryItem";
+    item.innerText = `${mem.icon || "📍"} ${mem.name || "Untitled Place"}`;
+    item.onclick = () => map.setView([lat, lng], 6);
+    document.getElementById("memoryList").appendChild(item);
+  });
+}
+
+/* -------------------- Helpers -------------------- */
+function escapeHTML(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
+}
+
+function cssEscape(value) {
+  if (window.CSS && CSS.escape) return CSS.escape(value);
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+</script>
+</body>
+</html>
