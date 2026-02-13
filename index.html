@@ -13,7 +13,7 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 #enterBtn{padding:12px 25px;font-size:18px;border:none;border-radius:30px;background:#ff4d6d;color:white;cursor:pointer;}
 #enterBtn:hover{background:#ff6382;}
 #map{height:100%;width:100%;}
-#sidePanel{position:fixed;top:10px;right:10px;width:230px;max-height:80%;overflow:auto;background:white;border-radius:15px;padding:10px;box-shadow:0 4px 10px rgba(0,0,0,0.2);z-index:800;}
+#sidePanel{position:fixed;top:46px;right:10px;width:230px;max-height:78%;overflow:auto;background:white;border-radius:15px;padding:10px;box-shadow:0 4px 10px rgba(0,0,0,0.2);z-index:800;}
 .memoryItem{padding:6px;border-bottom:1px solid #eee;cursor:pointer;font-size:14px;}
 .memoryItem:hover{background:#f8f8f8;}
 .leaflet-popup-content-wrapper{border-radius:15px;width:260px!important;}
@@ -28,9 +28,24 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 #savingOverlay{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,0.5);color:white;font-size:20px;z-index:2000;display:none;}
 .heartbeat{animation:beat .6s infinite alternate;}
 @keyframes beat{from{transform:scale(1);}to{transform:scale(1.3);}}
+
+/* storage status bar */
+#storageStatus{
+  position:fixed;left:0;top:0;width:100%;
+  padding:10px 12px;
+  background:#111;color:#fff;
+  z-index:9000;
+  font-size:14px;
+  box-sizing:border-box;
+  opacity:0.95;
+}
+#storageStatus strong{color:#ff4d6d;}
 </style>
 </head>
+
 <body>
+
+<div id="storageStatus">Checking storage...</div>
 
 <div id="intro">
   <h1>Welcome to Our World ❤️</h1>
@@ -49,66 +64,165 @@ html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;overflow:h
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-/* ===================== FASTEST LOCAL VERSION (iPhone) ===================== */
-/* Saves EVERYTHING on this device (IndexedDB). Photos are aggressively resized
-   to keep processing fast. No Firebase. No uploads. */
+/* ===================== GLOBAL ERROR POPUPS (so nothing is hidden) ===================== */
+window.addEventListener("unhandledrejection", (e) => {
+  alert("Unhandled promise error: " + (e.reason?.message || e.reason));
+});
+window.addEventListener("error", (e) => {
+  alert("JS error: " + (e.message || e.error));
+});
 
-/* ---------- Overlay ---------- */
+/* ===================== UI HELPERS ===================== */
 function showSavingOverlay(show, text) {
   const o = document.getElementById("savingOverlay");
   o.style.display = show ? "flex" : "none";
   if (show) o.innerHTML = `<span class="heartbeat">${text || "Working..."}</span>`;
 }
 
-/* ---------- IndexedDB ---------- */
+function setStorageStatus(msg) {
+  document.getElementById("storageStatus").innerHTML = msg;
+}
+
+/* ===================== STORAGE LAYER (IndexedDB with localStorage fallback) ===================== */
 const DB_NAME = "ourworld_local";
 const DB_VERSION = 1;
 const STORE = "memories";
+const LS_KEY = "ourworld_memories_v1";
+
+let storageMode = "unknown"; // "indexeddb" | "localstorage" | "blocked"
 
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-async function saveLocalMemory(mem) {
+// quick self-test: can we open IDB and write a tiny record?
+async function testIndexedDB() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put(mem);
-    tx.oncomplete = () => resolve();
+    const os = tx.objectStore(STORE);
+    os.put({ id: "__test__", t: Date.now(), ok: true });
+    tx.oncomplete = () => resolve(true);
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function getLocalMemories() {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readonly");
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  });
+function testLocalStorage() {
+  const k = "__ls_test__";
+  localStorage.setItem(k, "1");
+  const v = localStorage.getItem(k);
+  localStorage.removeItem(k);
+  return v === "1";
 }
 
-async function deleteLocalMemory(id) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+async function initStorage() {
+  // Prefer IndexedDB
+  try {
+    await testIndexedDB();
+    storageMode = "indexeddb";
+    setStorageStatus(`Storage: <strong>IndexedDB</strong> (best)`);
+    return;
+  } catch (e) {
+    console.warn("IndexedDB not usable:", e);
+  }
+
+  // Fallback: localStorage
+  try {
+    if (testLocalStorage()) {
+      storageMode = "localstorage";
+      setStorageStatus(`Storage: <strong>localStorage</strong> (text + small photos only)`);
+      return;
+    }
+  } catch (e) {
+    console.warn("localStorage not usable:", e);
+  }
+
+  storageMode = "blocked";
+  setStorageStatus(`Storage: <strong>BLOCKED</strong>. iPhone settings are preventing saving.`);
 }
 
-/* ---------- FAST photo compression (iPhone-safe) ---------- */
-/* This is tuned for speed. It resizes hard and lowers quality. */
+/* ---- localStorage helpers ---- */
+function lsReadAll() {
+  const raw = localStorage.getItem(LS_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw) || []; } catch { return []; }
+}
+function lsWriteAll(arr) {
+  localStorage.setItem(LS_KEY, JSON.stringify(arr));
+}
+
+/* ---- public storage API used by app ---- */
+async function saveMemoryRecord(mem) {
+  if (storageMode === "indexeddb") {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).put(mem);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  if (storageMode === "localstorage") {
+    const all = lsReadAll();
+    const idx = all.findIndex(x => x.id === mem.id);
+    if (idx >= 0) all[idx] = mem; else all.push(mem);
+    lsWriteAll(all);
+    return;
+  }
+
+  throw new Error("Storage is blocked on this device/browser.");
+}
+
+async function getAllMemoryRecords() {
+  if (storageMode === "indexeddb") {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => resolve((req.result || []).filter(x => x.id !== "__test__"));
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  if (storageMode === "localstorage") {
+    return lsReadAll();
+  }
+
+  throw new Error("Storage is blocked on this device/browser.");
+}
+
+async function deleteMemoryRecord(id) {
+  if (storageMode === "indexeddb") {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  if (storageMode === "localstorage") {
+    const all = lsReadAll().filter(x => x.id !== id);
+    lsWriteAll(all);
+    return;
+  }
+
+  throw new Error("Storage is blocked on this device/browser.");
+}
+
+/* ===================== FAST PHOTO COMPRESSION (iPhone) ===================== */
 function withTimeout(promise, ms, label) {
   return Promise.race([
     promise,
@@ -126,6 +240,12 @@ function dataURLToBlob(dataURL) {
   return new Blob([u8], { type: mime });
 }
 
+async function canvasToJpegData(canvas, quality) {
+  // We store as base64 if using localStorage fallback (because it can't store Blobs/Files)
+  const dataURL = canvas.toDataURL("image/jpeg", quality);
+  return dataURL;
+}
+
 async function canvasToJpegBlob(canvas, quality) {
   const blob = await new Promise(resolve => {
     if (!canvas.toBlob) return resolve(null);
@@ -139,14 +259,12 @@ async function canvasToJpegBlob(canvas, quality) {
 }
 
 async function compressForSpeed(file) {
-  // FASTEST settings that still look ok on a popup
-  const MAX_WIDTH = 420;   // very small for speed
-  const QUALITY = 0.33;    // strong compression
+  // Tuned for speed in popups
+  const MAX_WIDTH = 420;
+  const QUALITY = 0.33;
 
   const img = new Image();
   img.src = URL.createObjectURL(file);
-
-  // Protect against iOS hangs on huge photos
   await withTimeout(img.decode(), 6000, "Photo decode took too long");
 
   const scale = Math.min(1, MAX_WIDTH / img.width);
@@ -162,27 +280,22 @@ async function compressForSpeed(file) {
 
   URL.revokeObjectURL(img.src);
 
+  if (storageMode === "localstorage") {
+    // localStorage can only store strings, so store compressed base64
+    const dataURL = await withTimeout(canvasToJpegData(canvas, QUALITY), 6000, "Photo compression took too long");
+    return { kind: "dataurl", dataURL };
+  }
+
+  // IndexedDB can store Blobs/Files
   const blob = await withTimeout(canvasToJpegBlob(canvas, QUALITY), 6000, "Photo compression took too long");
-
-  return new File([blob], "photo.jpg", { type: "image/jpeg" });
+  return { kind: "blob", blob };
 }
 
-/* ---------- Helpers ---------- */
-function escapeHTML(str) {
-  return String(str).replace(/[&<>"']/g, s => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  }[s]));
-}
-function cssEscape(value) {
-  if (window.CSS && CSS.escape) return CSS.escape(value);
-  return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
-}
-
-/* ---------- App ---------- */
+/* ===================== APP ===================== */
 let map;
 let markers = [];
 
-document.getElementById("enterBtn").onclick = () => {
+document.getElementById("enterBtn").onclick = async () => {
   document.getElementById("intro").style.display = "none";
   initMap();
 };
@@ -237,33 +350,43 @@ function initPopupEvents(latlng) {
 
 async function saveMemory(latlng, name, desc, file, icon) {
   try {
+    if (storageMode === "blocked") {
+      throw new Error("Your iPhone is blocking website storage. See note below after you paste this code.");
+    }
+
     const id = (crypto && crypto.randomUUID)
       ? crypto.randomUUID()
       : String(Date.now()) + Math.random().toString(16).slice(2);
 
-    let imageBlob = null;
-
-    if (file) {
-      showSavingOverlay(true, "Processing photo...");
-      // Aggressive resize/compress for speed
-      const compressed = await compressForSpeed(file);
-      imageBlob = compressed;
-    }
-
-    showSavingOverlay(true, "Saving...");
-
-    const data = {
+    const record = {
       id,
       lat: latlng.lat,
       lng: latlng.lng,
       name,
       desc,
       icon,
-      imageBlob,
-      date: new Date().toLocaleDateString()
+      date: new Date().toLocaleDateString(),
+      // image stored in one of these forms:
+      imageKind: null,
+      imageDataURL: null,
+      imageBlob: null
     };
 
-    await saveLocalMemory(data);
+    if (file) {
+      showSavingOverlay(true, "Processing photo...");
+      const out = await compressForSpeed(file);
+
+      if (out.kind === "dataurl") {
+        record.imageKind = "dataurl";
+        record.imageDataURL = out.dataURL;
+      } else {
+        record.imageKind = "blob";
+        record.imageBlob = out.blob;
+      }
+    }
+
+    showSavingOverlay(true, "Saving...");
+    await saveMemoryRecord(record);
 
     showSavingOverlay(false);
     await loadMemories();
@@ -271,25 +394,30 @@ async function saveMemory(latlng, name, desc, file, icon) {
   } catch (err) {
     console.error(err);
     showSavingOverlay(false);
-    alert(`Save failed: ${err.message || err}`);
+    alert("Save failed: " + (err.message || err));
   }
 }
 
 async function loadMemories() {
+  if (!map) return;
+
   markers.forEach(m => map.removeLayer(m));
   markers = [];
   document.getElementById("memoryList").innerHTML = "";
 
   let memories = [];
   try {
-    memories = await getLocalMemories();
+    memories = await getAllMemoryRecords();
   } catch (e) {
-    console.error("Failed to load memories:", e);
-    alert("Could not load saved memories. If you are in Private Browsing, turn it off.");
+    console.error(e);
+    alert("Could not load saved memories: " + (e.message || e));
     return;
   }
 
-  memories = memories.reverse();
+  // newest first
+  memories = memories
+    .filter(m => m && m.id && m.id !== "__test__")
+    .reverse();
 
   memories.forEach(mem => {
     const lat = Number(mem.lat);
@@ -305,11 +433,19 @@ async function loadMemories() {
     }).addTo(map);
 
     marker.on("click", () => {
-      const imgURL = mem.imageBlob ? URL.createObjectURL(mem.imageBlob) : null;
+      let imgHTML = "";
+      let blobURL = null;
+
+      if (mem.imageKind === "dataurl" && mem.imageDataURL) {
+        imgHTML = `<img src="${mem.imageDataURL}" class="popup-img">`;
+      } else if (mem.imageKind === "blob" && mem.imageBlob) {
+        blobURL = URL.createObjectURL(mem.imageBlob);
+        imgHTML = `<img src="${blobURL}" class="popup-img">`;
+      }
 
       const content = `
         <h4>${escapeHTML(mem.name || "Untitled Place")}</h4>
-        ${imgURL ? `<img src="${imgURL}" class="popup-img">` : ""}
+        ${imgHTML}
         <p>${escapeHTML(mem.desc || "")}</p>
         <small>${escapeHTML(mem.date || "")}</small>
         <button class="deleteBtn" data-id="${mem.id}">Delete</button>
@@ -322,7 +458,7 @@ async function loadMemories() {
         if (btn) {
           btn.onclick = async () => {
             if (!confirm("Delete this memory?")) return;
-            await deleteLocalMemory(mem.id);
+            await deleteMemoryRecord(mem.id);
             await loadMemories();
             map.closePopup();
           };
@@ -330,7 +466,7 @@ async function loadMemories() {
       }, 0);
 
       marker.once("popupclose", () => {
-        if (imgURL) URL.revokeObjectURL(imgURL);
+        if (blobURL) URL.revokeObjectURL(blobURL);
       });
     });
 
@@ -343,6 +479,29 @@ async function loadMemories() {
     document.getElementById("memoryList").appendChild(item);
   });
 }
+
+function escapeHTML(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[s]));
+}
+function cssEscape(value) {
+  if (window.CSS && CSS.escape) return CSS.escape(value);
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+
+/* ===================== STARTUP ===================== */
+(async function start() {
+  await initStorage();
+
+  // If storage is blocked, tell you the most likely iPhone setting causing it
+  if (storageMode === "blocked") {
+    setStorageStatus(
+      `Storage: <strong>BLOCKED</strong>. Check iPhone Settings → Safari → ` +
+      `“Block All Cookies” must be OFF, and you must NOT be in Private Browsing.`
+    );
+  }
+})();
 </script>
 </body>
 </html>
